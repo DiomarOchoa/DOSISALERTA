@@ -1,9 +1,11 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
 Última actualización: **2026-11-04 — Fase 1 APROBADA Y PUBLICADA
-en GitHub (auditoría de cierre).**
-**No se ha iniciado la Fase 2. Primer commit `2bc7ec8` en la rama
-`main`, 51 archivos, publicado el 2026-11-04.**
+en GitHub; correcciones finales preparadas, PENDIENTES DE TERCER
+COMMIT (sin hacer todavía).**
+**No se ha iniciado la Fase 2. Commits en la rama `main`,
+publicados el 2026-11-04: `2bc7ec8` (implementación, 51 archivos)
+y `77d0d5c` (auditoría, 7 archivos).**
 
 ## Fase actual
 
@@ -266,9 +268,42 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 - **Backend/frontend re-verificados en esta auditoría:** ver el
   informe de entrega (pytest, `/health`, build y dev). Ninguna
   prueba se declara exitosa sin haberla ejecutado.
-- **Sin commit ni push de esta auditoría:** los cambios quedan
-  preparados aquí, pendientes de trasladar al PC y de autorización
-  explícita para commit y push. No se inicia la Fase 2.
+- **Auditoría trasladada y publicada:** los cambios de esta
+  auditoría se trasladaron al PC y se publicaron como segundo
+  commit `77d0d5c` ("docs: audit and close Phase 1, pin dependency
+  versions", 7 archivos, 158 inserciones, 69 eliminaciones, push
+  `2bc7ec8..77d0d5c` en `main`), sin el ZIP ni `package-lock.json`
+  en el commit. La frase anterior, que los dejaba pendientes de
+  traslado, quedó corregida por este hecho.
+
+## Correcciones finales de la Fase 1 (2026-11-04, pendientes de tercer commit)
+
+Autorizadas por el equipo tras la revisión final, y preparadas
+aquí, sin commit ni push todavía:
+
+- **Documentación:** `README.md`, `ESTADO_PROYECTO.md`,
+  `backend/README.md`, `frontend/README.md` y
+  `docs/architecture/ROADMAP.md` registran ahora los dos commits
+  (`2bc7ec8` y `77d0d5c`), el total de 2 commits, las fechas
+  reales (Fase 1 realizada el 2026-11-04, un día antes de lo
+  propuesto del 5 al 7 de noviembre) y la distinción entre
+  tecnologías instaladas en la Fase 1 y previstas para fases
+  posteriores. PostgreSQL sigue sin afirmarse como funcionando:
+  sigue pendiente de verificar con Docker.
+- **Backend:** `backend/app/core/config.py` valida ahora
+  explícitamente `PORT` y `POSTGRES_PORT`: entero entre 1 y
+  65535, vacío o ausente usa el defecto, inválido falla al
+  arrancar con un error que nombra la variable. Sin cambio de
+  arquitectura y sin dependencias nuevas.
+- **Pruebas:** nuevo `backend/app/tests/test_config.py` con casos
+  para `PORT=abc`, `99999`, `-1`, `0`, `POSTGRES_PORT=xyz`,
+  valores válidos, límites 1 y 65535, variables vacías y
+  defectos. Las pruebas usan `Settings()` directamente, no la
+  configuración cacheada, para no contaminarse entre sí.
+- **Verificación de estas correcciones:** ver el informe de
+  entrega de esta corrección (pytest completo, uvicorn,
+  `/health`, `/api/v1/health`, build y dev del frontend).
+  PostgreSQL sigue pendiente, solo en el PC con Docker.
 
 ## Próxima fase (SOLO cuando se autorice)
 

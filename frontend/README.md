@@ -4,8 +4,9 @@
 > Ya existe el proyecto Vite + React + TypeScript con una pantalla
 > inicial que comprueba el backend. Todavia NO hay inicio de sesion,
 > medicamentos, tratamientos ni ninguna vista funcional: eso llega
-> en las Fases 3, 4 y 8. Primer commit `2bc7ec8` en la rama
-> `main` (2026-11-04).
+> en las Fases 3, 4 y 8. Commits en la rama `main` (2026-11-04):
+> `2bc7ec8` (implementación) y `77d0d5c` (auditoría y fijación de
+> dependencias).
 
 ## Decisión ya tomada: TypeScript, no JavaScript plano
 

@@ -44,11 +44,37 @@ def _getenv(name: str, default: str) -> str:
 
 
 def _getint(name: str, default: int) -> int:
-    """Lee una variable entera; si no es un numero, usa el defecto."""
-    try:
-        return int(os.getenv(name, str(default)))
-    except ValueError:
+    """Lee una variable entera de puerto, con validacion explicita.
+
+    - Si la variable no existe o esta vacia, usa el defecto.
+    - Si no es un numero entero, falla con un error que nombra la
+      variable, en lugar de arrancar en silencio con el defecto.
+    - Si no esta entre 1 y 65535, falla con un error que nombra la
+      variable y el valor.
+
+    Esta funcion solo se usa para puertos (`PORT` y
+    `POSTGRES_PORT`). Si en el futuro se necesitara para otro numero
+    que no sea un puerto, habria que separar la validacion de rango.
+    Fallar al arrancar es intencionado: una configuracion mal escrita
+    debe verse en la configuracion, no mas tarde en Uvicorn o en la
+    base de datos con un error confuso.
+    """
+    raw = os.getenv(name)
+    if raw is None or raw == "":
         return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(
+            f"La variable {name} debe ser un numero entero, "
+            f"pero vale {raw!r}. Revisa tu .env."
+        ) from None
+    if not 1 <= value <= 65535:
+        raise ValueError(
+            f"La variable {name} debe ser un puerto entre 1 y 65535, "
+            f"pero vale {value}."
+        )
+    return value
 
 
 class Settings(BaseModel):

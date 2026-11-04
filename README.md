@@ -3,9 +3,14 @@
 > **Estado: Fase 1 — Aprobada y publicada en GitHub.**
 > Ya existe backend FastAPI con `GET /health` y frontend React con
 > pantalla inicial. Todavía no hay modelos, autenticación,
-> medicamentos ni recordatorios. Primer commit `2bc7ec8` en la rama
-> `main`, 51 archivos, publicado el 2026-11-04 en
-> https://github.com/DiomarOchoa/DOSISALERTA.
+> medicamentos ni recordatorios. Commits en la rama `main`,
+> publicados el 2026-11-04 en
+> https://github.com/DiomarOchoa/DOSISALERTA:
+> `2bc7ec8` (implementación de la Fase 1, 51 archivos) y `77d0d5c`
+> (auditoría y fijación de dependencias, 7 archivos). Las
+> correcciones finales de la Fase 1 (ver `ESTADO_PROYECTO.md`)
+> están preparadas y pendientes de un tercer commit, todavía sin
+> hacer.
 > Distinción honesta: implementación y revisión están hechas y
 > aprobadas; las pruebas de backend y frontend se ejecutaron de
 > verdad (ver abajo); PostgreSQL todavía no se ha ejecutado, porque
@@ -55,8 +60,9 @@ datos para la web y otra para Telegram.
 ## Características (previstas, por fases)
 
 - [x] Fase 1: entorno, backend FastAPI con `/health` y frontend React
-      inicial (aprobada y publicada, commit `2bc7ec8`; PostgreSQL
-      sin ejecutar todavía, pendiente de verificar con Docker).
+      inicial (aprobada y publicada, commits `2bc7ec8` y `77d0d5c`;
+      PostgreSQL sin ejecutar todavía, pendiente de verificar con
+      Docker).
 - [ ] Fase 2: modelos y base de datos PostgreSQL.
 - [ ] Fase 3: autenticación JWT y seguridad por usuario.
 - [ ] Fase 4: medicamentos, tratamientos, dosis y horarios.
@@ -73,16 +79,16 @@ datos para la web y otra para Telegram.
 |---|---|---|
 | Lenguaje backend | Python | 3.12 o superior (único backend) |
 | API | FastAPI + Uvicorn | Documentación OpenAPI/Swagger automática |
-| ORM y migraciones | SQLAlchemy 2.0 (async) + Alembic | Driver `asyncpg` |
-| Validación | Pydantic v2 | Esquemas de entrada y salida |
-| Configuración | python-dotenv | Secretos solo en `.env`, nunca en el repo |
-| Base de datos | PostgreSQL | 17-alpine en Docker (desarrollo) |
-| Bot | python-telegram-bot | Polling en desarrollo (ver decisiones) |
-| Autenticación | JWT (PyJWT) + bcrypt | Access 60 min, refresh 7 días |
-| Pruebas | Pytest + pytest-asyncio | Unitarias y de API |
+| ORM y migraciones | SQLAlchemy 2.0 (async) + Alembic | Previsto para la Fase 2, no instalado en la Fase 1. Driver `asyncpg` previsto. |
+| Validación | Pydantic v2 | Instalado en la Fase 1 (2.14.2). Esquemas de entrada y salida. |
+| Configuración | python-dotenv | Instalado en la Fase 1 (1.2.4). Secretos solo en `.env`, nunca en el repo. |
+| Base de datos | PostgreSQL | 17-alpine en Docker (desarrollo). Configurado, pero sin ejecutar todavía. |
+| Bot | python-telegram-bot | Previsto para la Fase 6, no instalado en la Fase 1. Polling en desarrollo (ver decisiones). |
+| Autenticación | JWT (PyJWT) + bcrypt | Previsto para la Fase 3, no instalado en la Fase 1. Access 60 min, refresh 7 días. |
+| Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). Unitarias y de API. pytest-asyncio previsto cuando haya tests async. |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
 | Entorno | Docker y Docker Compose | Solo PostgreSQL (sin ejecutar todavía; pendiente de verificar) |
-| Control de versiones | Git y GitHub | Repositorio público, rama `main`, commit inicial `2bc7ec8` (2026-11-04), 51 archivos |
+| Control de versiones | Git y GitHub | Repositorio público, rama `main`, commits `2bc7ec8` y `77d0d5c` (2026-11-04) |
 
 Versiones verificadas en la Fase 1: FastAPI 0.162.0, Uvicorn
 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React 19.3.1, Vite 6.4.5,
@@ -228,10 +234,11 @@ futura solo si hay despliegue con dominio y TLS; ver
 > **Pendiente de completar.**
 > No se inventan nombres: esta tabla la debe completar el equipo y
 > cada integrante debe poder explicar el módulo que firma. El
-> repositorio ya está publicado y tiene 1 commit total (`2bc7ec8`,
-> Fase 1); el reparto de commits por integrante queda pendiente
-> hasta que se completen los nombres, así que no se asigna ningún
-> commit a nadie en esta tabla todavía.
+> repositorio ya está publicado y tiene 2 commits totales
+> (`2bc7ec8`, Fase 1, y `77d0d5c`, auditoría); el reparto de
+> commits por integrante queda pendiente hasta que se completen
+> los nombres, así que no se asigna ningún commit a nadie en
+> esta tabla todavía.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|

@@ -4,8 +4,9 @@
 > Ya existe `pyproject.toml`, `app/main.py`, la configuracion central
 > y el endpoint de salud con su prueba. Todavia NO hay modelos,
 > migraciones, autenticacion, medicamentos ni recordatorios: eso
-> llega en las fases 2 a 6. Primer commit `2bc7ec8` en la rama
-> `main` (2026-11-04).
+> llega en las fases 2 a 6. Commits en la rama `main` (2026-11-04):
+> `2bc7ec8` (implementación) y `77d0d5c` (auditoría y fijación de
+> dependencias).
 >
 > Correccion importante de la Fase 0: un borrador anterior,
 > interrumpido, usaba un stack distinto al exigido por la asignatura.
@@ -109,7 +110,12 @@ la contrasena. En la Fase 1 solo se usan: nombre de la app, puerto
 y origenes CORS (por defecto, solo `http://localhost:5173`). Las
 variables de PostgreSQL se guardan ya en la configuracion para la
 Fase 2, pero no se abre ninguna conexion todavia. JWT y token de
-Telegram no se leen todavia: se anaden en sus fases.
+Telegram no se leen todavia: se anaden en sus fases. Validacion de
+puertos: `PORT` y `POSTGRES_PORT` deben ser enteros entre 1 y
+65535; una variable vacia o ausente usa el defecto, y un valor
+invalido hace fallar el arranque con un error que nombra la
+variable, en lugar de arrancar en silencio en otro puerto (ver
+`app/tests/test_config.py`).
 
 ## Versiones verificadas en la Fase 1
 

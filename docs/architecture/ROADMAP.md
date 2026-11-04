@@ -40,7 +40,7 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
 | Fase | Fechas propuestas | Entregable que se puede mostrar |
 |---|---|---|
 | 0. Fundación | 4 nov | Esta documentación |
-| 1. Entorno y backend | 5–7 nov | API `/health` + BD levantada + 1 test en verde |
+| 1. Entorno y backend | Realizada 4 nov (propuesta 5–7 nov) | API `/health` + 1 test en verde (BD pendiente de verificar) |
 | 2. Modelos y BD | 8–10 nov | Migraciones Alembic aplicadas |
 | 3. Autenticación | 11–12 nov | Registro, login JWT y ruta protegida |
 | 4. Medicamentos y tratamientos | 13–15 nov | CRUD con horarios y recordatorios generados |
@@ -76,14 +76,21 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   desde https://github.com/DiomarOchoa/DOSISALERTA. Nota de cierre:
   el primer push se hizo en realidad tras aprobar la Fase 1, no la
   Fase 0: commit `2bc7ec8` en `main`, 51 archivos, 2026-11-04.
-  Queda pendiente de esa tarea original: `docker compose up -d
-  postgres` ejecutado y registrado, y `pg_isready` verificado.
+  Segundo commit `77d0d5c` (auditoría, 7 archivos, 2026-11-04).
+  Fase 1 realizada en realidad el 2026-11-04, un día antes de lo
+  propuesto. Queda pendiente de esa tarea original: `docker compose
+  up -d postgres` ejecutado y registrado, y `pg_isready`
+  verificado. Ese pendiente debe cerrarse antes del trabajo de
+  base de datos de la Fase 2.
 - Archivos: `backend/pyproject.toml`, `backend/app/main.py`,
   `backend/app/core/`, `backend/app/config/`, `frontend/package.json`.
 - Pruebas: `pytest` en verde; `/health` responde 200; la BD responde
-  a `pg_isready`.
+  a `pg_isready` (esta última, todavía pendiente, ver arriba).
 - Aceptación: cualquier integrante puede clonar, instalar y levantar
   API + BD siguiendo el README, sin pasos no documentados.
+  Aceptación parcialmente pendiente: API y tests cumplidos; BD
+  pendiente de verificar, así que no se afirma que PostgreSQL
+  funcione hasta que `pg_isready` se ejecute de verdad.
 - Commits: `build: initialize python project`,
   `feat: initialize fastapi backend`, `test: add health check test`,
   `docs: document setup instructions`.
