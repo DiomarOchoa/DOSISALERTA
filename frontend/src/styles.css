@@ -1,0 +1,59 @@
+/* Estilos minimos de la Fase 1, con variables CSS modernas.
+   No hay framework CSS: la idea es que la pantalla inicial sea
+   legible y explicable sin depender de una libreria de diseno. */
+
+:root {
+  --fondo: #f4f6f8;
+  --texto: #1a1a1a;
+  --tarjeta: #ffffff;
+  --acento: #0b6fa4;
+  --ok: #1a7a3a;
+  --error: #b3261e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.card {
+  background: var(--tarjeta);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+button {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.error {
+  color: var(--error);
+}

@@ -1,0 +1,50 @@
+# DosisAlerta — docker-compose.yml (Fase 1)
+#
+# Alcance: este archivo define UNICAMENTE el entorno de desarrollo
+# local (PostgreSQL). El backend FastAPI y el frontend React NO se
+# levantan aqui: en la Fase 1 se ejecutan fuera de Docker, con
+# uvicorn y con npm run dev, para que depurarlos sea sencillo.
+#
+# Por que solo PostgreSQL aqui:
+# - Es el unico servicio externo que el backend necesitara en la Fase 2.
+# - Evita inventar una imagen de backend antes de que exista una API
+#   con modelos y migraciones que contenerizar.
+#
+# Uso (Fase 1):
+#   cp .env.example .env   # y completar valores
+#   docker compose up -d postgres
+#   docker compose ps
+#   docker compose down    # detener sin borrar datos
+#   docker compose down -v # detener Y borrar el volumen (datos de prueba)
+#
+# Estado: SIN EJECUTAR en el entorno donde se escribio la Fase 1
+# (aqui no hay Docker instalado, ver docker/README.md). La primera
+# ejecucion real y su salida deben registrarse en el PC del equipo,
+# donde si haya Docker, antes de dar la Fase 1 por verificada en BD.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: dosisalerta-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dosisalerta}
+      POSTGRES_USER: ${POSTGRES_USER:-dosisalerta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+    # Puerto configurable: el primer numero es el puerto del host
+    # (POSTGRES_PORT en .env, 5432 por defecto) y el segundo es el
+    # puerto dentro del contenedor, que siempre es 5432. Asi, si el
+    # 5432 ya esta ocupado en el PC, basta cambiar POSTGRES_PORT
+    # en .env sin tocar este archivo.
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dosisalerta} -d ${POSTGRES_DB:-dosisalerta}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

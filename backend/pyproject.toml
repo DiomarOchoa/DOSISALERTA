@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dosisalerta"
+version = "0.1.0"
+description = "DosisAlerta: gestion y seguimiento de tratamientos medicos (web React + bot de Telegram, backend FastAPI, PostgreSQL)."
+requires-python = ">=3.12"
+dependencies = [
+    # API web. FastAPI genera la documentacion OpenAPI/Swagger sola.
+    "fastapi",
+    # Servidor ASGI para ejecutar la aplicacion.
+    "uvicorn[standard]",
+    # Validacion de datos y esquemas de la API.
+    "pydantic>=2.0",
+    # Carga de variables de entorno desde .env (ver core/config.py).
+    "python-dotenv",
+    # Datos de zonas horarias para zoneinfo en Windows (Fase 4 en adelante).
+    # En Linux/macOS suelen venir del sistema; instalarlo siempre evita
+    # que el mismo codigo falle solo en el PC de desarrollo.
+    "tzdata",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Pruebas. httpx es necesario para fastapi.testclient.TestClient.
+    "pytest",
+    "httpx",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]

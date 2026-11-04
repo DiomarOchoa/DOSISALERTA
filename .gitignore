@@ -1,0 +1,45 @@
+# DosisAlerta — .gitignore
+# Regla: nunca se versionan credenciales, secretos, entornos virtuales
+# ni archivos generados. Lo que sí se versiona: .env.example (plantilla
+# sin valores reales) y pyproject.toml / package-lock.json.
+
+# Entorno y secretos (requisito académico 8)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node / React / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Base de datos y Docker (datos locales, no del repo)
+docker/postgres-data/
+*.db
+*.sqlite3
+
+# IDE y sistema operativo
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
