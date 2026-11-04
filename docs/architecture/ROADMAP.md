@@ -73,8 +73,11 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   python-dotenv y Pydantic; `GET /health`; CORS; `docker compose up
   -d postgres` ejecutado y registrado; esqueleto Vite + React +
   TypeScript (sin vistas de negocio); primer test Pytest; clonar
-  desde https://github.com/DiomarOchoa/DOSISALERTA (repo ya creado,
-  vacío) y preparar el primer push solo cuando se apruebe la Fase 0.
+  desde https://github.com/DiomarOchoa/DOSISALERTA. Nota de cierre:
+  el primer push se hizo en realidad tras aprobar la Fase 1, no la
+  Fase 0: commit `2bc7ec8` en `main`, 51 archivos, 2026-11-04.
+  Queda pendiente de esa tarea original: `docker compose up -d
+  postgres` ejecutado y registrado, y `pg_isready` verificado.
 - Archivos: `backend/pyproject.toml`, `backend/app/main.py`,
   `backend/app/core/`, `backend/app/config/`, `frontend/package.json`.
 - Pruebas: `pytest` en verde; `/health` responde 200; la BD responde

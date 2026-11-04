@@ -1,10 +1,11 @@
 # Backend — DosisAlerta (Python + FastAPI)
 
-> Estado: **Fase 1 — implementada, pendiente de revisión.**
+> Estado: **Fase 1 — aprobada y publicada en GitHub.**
 > Ya existe `pyproject.toml`, `app/main.py`, la configuracion central
 > y el endpoint de salud con su prueba. Todavia NO hay modelos,
 > migraciones, autenticacion, medicamentos ni recordatorios: eso
-> llega en las fases 2 a 6. No se ha hecho ningun commit.
+> llega en las fases 2 a 6. Primer commit `2bc7ec8` en la rama
+> `main` (2026-11-04).
 >
 > Correccion importante de la Fase 0: un borrador anterior,
 > interrumpido, usaba un stack distinto al exigido por la asignatura.
@@ -112,7 +113,8 @@ Telegram no se leen todavia: se anaden en sus fases.
 
 ## Versiones verificadas en la Fase 1
 
-Probadas en el entorno de desarrollo de la Fase 1 (Python 3.12.3):
+Probadas en el entorno de desarrollo de la Fase 1 (Python 3.12.3)
+y en el PC del equipo (Python 3.13.4), con las mismas versiones:
 
 | Dependencia | Version instalada |
 |---|---|
@@ -123,6 +125,11 @@ Probadas en el entorno de desarrollo de la Fase 1 (Python 3.12.3):
 | tzdata | 2026.6 |
 | Pytest | 9.2.0 |
 | HTTPX | 0.28.1 |
+
+Desde la auditoría de cierre, esas versiones están fijadas con `==`
+en `pyproject.toml`. No hay `requirements.txt` aparte: para
+actualizar una versión hay que cambiarla en `pyproject.toml`,
+reinstalar y volver a pasar `pytest`.
 
 Observacion sin ocultar: con esta combinacion de versiones, Pytest
 muestra una advertencia de deprecacion de Starlette sobre

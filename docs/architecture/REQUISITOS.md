@@ -130,7 +130,7 @@ fase, no cumplido todavía; no se marca como cumplido lo que no existe.
 | 10. `.gitignore` correcto | Creado | `.gitignore` (Python, Node, `.env`) |
 | 11. README completo | Creado (esta fase) | `README.md`, con Uso de IA |
 | 12. Documentación del uso de IA | Creado | Sección "Uso de IA" en `README.md` |
-| 13. Repositorio Git público | **Creado, vacío, pendiente de primer push** | https://github.com/DiomarOchoa/DOSISALERTA (verificado 2026-11-04, vacío); el push se hace solo tras aprobar la Fase 0, no antes |
+| 13. Repositorio Git público | **Publicado** | https://github.com/DiomarOchoa/DOSISALERTA, rama `main`, commit inicial `2bc7ec8` (2026-11-04), 51 archivos; el push se hizo tras aprobar la Fase 1 |
 | 14. Mínimo 5 commits por integrante | **Pendiente** | Reparto en ROADMAP; empieza en Fase 1 |
 | 15. Sustentación presencial de 10 min | Preparación prevista | Guion y ensayo en Fase 9 |
 | Entrega 25 nov 2026, 12:00 m | Calendario propuesto | ROADMAP §2 |

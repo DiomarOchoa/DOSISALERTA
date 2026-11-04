@@ -1,12 +1,15 @@
 # DOSISALERTA
 
-> **Estado: Fase 1 — Implementada, pendiente de revisión.**
+> **Estado: Fase 1 — Aprobada y publicada en GitHub.**
 > Ya existe backend FastAPI con `GET /health` y frontend React con
 > pantalla inicial. Todavía no hay modelos, autenticación,
-> medicamentos ni recordatorios. No se ha hecho ningún commit ni push.
-> El repositorio público existe, vacío, en
-> https://github.com/DiomarOchoa/DOSISALERTA; el primer push se hace
-> solo tras revisar esta fase.
+> medicamentos ni recordatorios. Primer commit `2bc7ec8` en la rama
+> `main`, 51 archivos, publicado el 2026-11-04 en
+> https://github.com/DiomarOchoa/DOSISALERTA.
+> Distinción honesta: implementación y revisión están hechas y
+> aprobadas; las pruebas de backend y frontend se ejecutaron de
+> verdad (ver abajo); PostgreSQL todavía no se ha ejecutado, porque
+> falta verificar Docker (ver pendientes).
 
 ## El problema
 
@@ -52,8 +55,8 @@ datos para la web y otra para Telegram.
 ## Características (previstas, por fases)
 
 - [x] Fase 1: entorno, backend FastAPI con `/health` y frontend React
-      inicial (implementada, pendiente de revisión; PostgreSQL sin
-      ejecutar todavía por falta de Docker en el entorno de desarrollo).
+      inicial (aprobada y publicada, commit `2bc7ec8`; PostgreSQL
+      sin ejecutar todavía, pendiente de verificar con Docker).
 - [ ] Fase 2: modelos y base de datos PostgreSQL.
 - [ ] Fase 3: autenticación JWT y seguridad por usuario.
 - [ ] Fase 4: medicamentos, tratamientos, dosis y horarios.
@@ -78,14 +81,19 @@ datos para la web y otra para Telegram.
 | Autenticación | JWT (PyJWT) + bcrypt | Access 60 min, refresh 7 días |
 | Pruebas | Pytest + pytest-asyncio | Unitarias y de API |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
-| Entorno | Docker y Docker Compose | Solo PostgreSQL (sin ejecutar todavía en el entorno de la Fase 1) |
-| Control de versiones | Git y GitHub | Repositorio público creado, vacío, sin push todavía |
+| Entorno | Docker y Docker Compose | Solo PostgreSQL (sin ejecutar todavía; pendiente de verificar) |
+| Control de versiones | Git y GitHub | Repositorio público, rama `main`, commit inicial `2bc7ec8` (2026-11-04), 51 archivos |
 
-Versiones verificadas en la Fase 1 (entorno de desarrollo: Python
-3.12.3, Node.js 24.22.1, npm 10.9.4): FastAPI 0.162.0, Uvicorn
+Versiones verificadas en la Fase 1: FastAPI 0.162.0, Uvicorn
 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React 19.3.1, Vite 6.4.5,
-TypeScript 5.9.3. Detalle completo en `backend/README.md` y
-`frontend/README.md`.
+TypeScript 5.9.3. Se verificaron en dos entornos: el de desarrollo
+(Python 3.12.3, Node.js 24.22.1, npm 10.9.4) y el PC del equipo
+(Python 3.13.4, Node.js 24.12.0, npm 11.6.2), con las mismas
+versiones de dependencias en ambos. En el PC, además, `pytest`
+dio 3 passed, `uvicorn` arrancó en 8000, `/health` respondió
+`{"status":"ok","app":"DosisAlerta","version":"0.1.0"}` y el
+frontend en 5173 mostró "Backend en línea (versión 0.1.0)".
+Detalle completo en `backend/README.md` y `frontend/README.md`.
 
 La justificación de cada elección, y lo que se rechazó, está en
 `docs/decisions/DECISIONES_TECNICAS.md`. No se añade ninguna
@@ -217,15 +225,19 @@ futura solo si hay despliegue con dominio y TLS; ver
 
 ## Integrantes
 
-> **Pendiente de completar antes de publicar el repositorio.**
+> **Pendiente de completar.**
 > No se inventan nombres: esta tabla la debe completar el equipo y
-> cada integrante debe poder explicar el módulo que firma.
+> cada integrante debe poder explicar el módulo que firma. El
+> repositorio ya está publicado y tiene 1 commit total (`2bc7ec8`,
+> Fase 1); el reparto de commits por integrante queda pendiente
+> hasta que se completen los nombres, así que no se asigna ningún
+> commit a nadie en esta tabla todavía.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|
-| Por completar | Por asignar | 0 (Fase 0, sin commits) |
-| Por completar | Por asignar | 0 (Fase 0, sin commits) |
-| Por completar | Por asignar | 0 (Fase 0, sin commits) |
+| Por completar | Por asignar | Pendiente de reparto |
+| Por completar | Por asignar | Pendiente de reparto |
+| Por completar | Por asignar | Pendiente de reparto |
 
 Requisito académico: **mínimo 5 commits descriptivos por integrante**,
 con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,

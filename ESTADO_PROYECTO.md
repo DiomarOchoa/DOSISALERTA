@@ -1,22 +1,25 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-04 — Fase 1 implementada, PENDIENTE
-DE REVISIÓN del equipo.**
-**No se ha iniciado la Fase 2. No se ha hecho ningún commit ni push.**
+Última actualización: **2026-11-04 — Fase 1 APROBADA Y PUBLICADA
+en GitHub (auditoría de cierre).**
+**No se ha iniciado la Fase 2. Primer commit `2bc7ec8` en la rama
+`main`, 51 archivos, publicado el 2026-11-04.**
 
 ## Fase actual
 
-**FASE 1: Configuración del entorno y backend Python — IMPLEMENTADA,
-PENDIENTE DE REVISIÓN.**
+**FASE 1: Configuración del entorno y backend Python — APROBADA Y
+PUBLICADA. Cierre pendiente solo de PostgreSQL con Docker.**
 
-Lo que significa "implementada" aquí es preciso: el backend FastAPI
-arranca y responde `GET /health` con 200, las 3 pruebas Pytest
-pasan, el frontend Vite + React + TypeScript arranca en 5173 y su
-build compila sin errores, y la estructura modular está lista para
-crecer. No significa que la Fase 1 esté verificada por completo:
-PostgreSQL no se ejecutó porque en el entorno de desarrollo de la
-Fase 1 no hay Docker (ver "Problemas pendientes"). La aprobación de
-la Fase 1 la da el equipo tras revisar este trabajo.
+Lo que significa "aprobada y publicada" aquí es preciso: el equipo
+revisó la Fase 1, la aprobó y la subió a GitHub desde su PC. El
+backend FastAPI arranca y responde `GET /health` con 200, las 3
+pruebas Pytest pasan (en el entorno de desarrollo y en el PC), el
+frontend Vite + React + TypeScript arranca en 5173, su build
+compila sin errores y su botón "Comprobar backend" mostró "Backend
+en línea (versión 0.1.0)" en el PC. No significa que la Fase 1 esté
+cerrada por completo: PostgreSQL no se ha ejecutado en ningún
+entorno todavía (ver "Problemas pendientes"). La Fase 2 no se
+inicia hasta que se autorice por separado.
 
 ## Objetivos completados (Fase 0)
 
@@ -183,17 +186,20 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 1. **Nombres de los integrantes:** pendientes. El README los deja
    como "por completar" a propósito; no se inventan. Sin esto no se
    puede repartir los 5 commits por integrante.
-2. **Repositorio público:** creado por el equipo el 2026-11-04 en
-   https://github.com/DiomarOchoa/DOSISALERTA, verificado vacío ese
-   mismo día. **Sin push todavía:** el primer push se hace solo tras
-   aprobar la Fase 1. Además, la copia de trabajo donde se escribió
-   la Fase 1 **no es un repositorio Git** (no hay `.git`, ni rama,
-   ni remoto configurado aquí): no se inicializó Git en esta copia
-   para no crear un segundo repositorio paralelo al del PC. Cuando
-   se apruebe la Fase 1, el equipo decidirá en el PC si clona el
-   repo vacío y copia estos archivos, o si inicializa Git en su
-   carpeta y añade el remoto; en ambos casos, sin `git reset
-   --hard`, sin `git clean` destructivo y sin force push.
+2. **Repositorio público — RESUELTO:** creado el 2026-11-04 en
+   https://github.com/DiomarOchoa/DOSISALERTA y publicado ese mismo
+   día desde el PC del equipo: `git init -b main`, remoto `origin`
+   apuntando a esa URL, primer commit `2bc7ec8` ("feat: implement
+   Phase 1 - FastAPI backend, React frontend and PostgreSQL
+   setup"), 51 archivos, 5228 inserciones, push `main -> main`
+   sin errores y sin `.env`, `.venv` ni `node_modules` en lo
+   subido. La copia de trabajo donde se escribió la Fase 1 en este
+   entorno **sigue sin ser un repositorio Git** (no hay `.git`, ni
+   rama, ni remoto aquí): no se inicializó Git en esta copia para
+   no crear un segundo repositorio paralelo al del PC. Las
+   correcciones de esta auditoría se preparan aquí y se deben
+   trasladar al PC para su commit y push, nunca con `git reset
+   --hard`, `git clean` destructivo ni force push.
 3. **Revisión de la carpeta en el PC (interrumpida, pendiente de
    comprobar por el equipo):** el 2026-11-04 se intentó revisar
    `C:\Users\ASUS\Desktop\PROYECTO_ED2\DOSISALERTA` por Tailscale +
@@ -203,18 +209,28 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
    que Tailscale diga Connected y que OpenSSH Server esté corriendo.
    El script de conexión quedó guardado de forma persistente en
    `workspace/ssh_tailscale.sh` para no perderlo en reinicios.
-4. **Docker Compose sin ejecutar (pendiente principal de la Fase
-   1):** en el entorno donde se escribió la Fase 1 no hay Docker.
-   La sintaxis YAML se validó y la configuración es la prevista,
-   pero PostgreSQL no se levantó ni respondió a `pg_isready`. La
+4. **Docker Compose sin ejecutar (pendiente principal del cierre
+   de la Fase 1):** ni en el entorno donde se escribió la Fase 1
+   ni en el PC se ha ejecutado todavía PostgreSQL. La sintaxis YAML
+   se validó y la configuración es la prevista, pero PostgreSQL no
+   se levantó ni respondió a `pg_isready` en ningún entorno. La
    primera ejecución real debe hacerse y registrarse en un PC con
-   Docker antes de dar la Fase 1 por verificada en base de datos.
-   Mientras tanto, backend y frontend funcionan sin BD, porque en
-   la Fase 1 ningún endpoint la toca.
-5. **Versiones exactas de librerías Python:** la Fase 0 fija familias y
-   mínimos (por ejemplo, `python-telegram-bot >= 21`), no un
-   `pyproject.lock` verificado. El pin exacto se congela en la Fase 1
-   cuando `pip install` resuelva y compile por primera vez.
+   Docker (ver `docker/README.md` para los comandos exactos) antes
+   de dar la Fase 1 por cerrada en base de datos. Mientras tanto,
+   backend y frontend funcionan sin BD, porque en la Fase 1 ningún
+   endpoint la toca.
+5. **Versiones exactas de librerías Python — RESUELTO en la
+   auditoría de cierre:** `backend/pyproject.toml` fija ahora las
+   versiones exactas verificadas en los dos entornos (FastAPI
+   0.162.0, Uvicorn 0.54.0, Pydantic 2.14.2, python-dotenv 1.2.4,
+   tzdata 2026.6, Pytest 9.2.0, HTTPX 0.28.1). No se crea un
+   `requirements.txt` duplicado ni un archivo de bloqueo aparte:
+   `pyproject.toml` sigue siendo la única fuente, y para
+   actualizar una versión hay que cambiarla ahí, reinstalar y
+   volver a pasar `pytest`, nunca hacer `pip install --upgrade`
+   suelto. El frontend ya estaba fijado por
+   `frontend/package-lock.json` (usar `npm ci` para una instalación
+   exactamente igual a la bloqueada).
 6. **Token de Telegram:** no existe todavía en este proyecto. Se crea
    con @BotFather en la Fase 6. No debe pedirse ni guardarse antes.
 7. **Calendario ajustado:** quedan 21 días hasta el 25 de noviembre de
@@ -224,6 +240,35 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 8. **Zona horaria por defecto:** se propone `America/Bogota` como valor
    inicial configurable por usuario, no como regla fija. Confirmarlo en
    la Fase 2 (es un campo en `users.timezone`, no código fijo).
+
+## Auditoría de cierre de la Fase 1 (2026-11-04)
+
+- **Git en el PC (según la terminal del equipo):** rama `main`,
+  remoto `origin` = https://github.com/DiomarOchoa/DOSISALERTA,
+  commit `2bc7ec8`, 51 archivos, push exitoso. En esta copia de
+  trabajo no hay `.git`: la auditoría no pudo comprobar Git aquí
+  y no lo finge; el estado Git que se registra es el de la
+  terminal del equipo, no una comprobación local.
+- **Documentación corregida:** `README.md` y `ESTADO_PROYECTO.md`
+  ya no dicen que el repo está vacío ni que no hay push; también
+  se actualizaron el estado en `backend/README.md` y
+  `frontend/README.md`, y la fila de repositorio en
+  `docs/architecture/REQUISITOS.md` y la tarea de la Fase 1 en
+  `docs/architecture/ROADMAP.md`, que afirmaban el estado viejo.
+- **Dependencias:** `pyproject.toml` con versiones exactas (ver
+  punto 5 de pendientes, ya resuelto); frontend fijado por
+  `package-lock.json`.
+- **Docker/PostgreSQL:** NO verificado en ningún entorno. En este
+  entorno no hay Docker (`docker: command not found`), así que
+  `docker compose config`, `up -d postgres` y `pg_isready` no se
+  ejecutaron aquí y no se simulan. Los comandos exactos para el PC
+  están en `docker/README.md`.
+- **Backend/frontend re-verificados en esta auditoría:** ver el
+  informe de entrega (pytest, `/health`, build y dev). Ninguna
+  prueba se declara exitosa sin haberla ejecutado.
+- **Sin commit ni push de esta auditoría:** los cambios quedan
+  preparados aquí, pendientes de trasladar al PC y de autorización
+  explícita para commit y push. No se inicia la Fase 2.
 
 ## Próxima fase (SOLO cuando se autorice)
 

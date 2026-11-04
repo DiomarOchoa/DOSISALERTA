@@ -7,26 +7,40 @@ name = "dosisalerta"
 version = "0.1.0"
 description = "DosisAlerta: gestion y seguimiento de tratamientos medicos (web React + bot de Telegram, backend FastAPI, PostgreSQL)."
 requires-python = ">=3.12"
+# Versiones fijadas con == en la auditoria de cierre de la Fase 1.
+# Son exactamente las versiones instaladas y probadas en dos entornos:
+# - Entorno de desarrollo: Python 3.12.3.
+# - PC del equipo: Python 3.13.4.
+# Fijarlas evita que una instalacion futura resuelva versiones nuevas
+# sin probar y rompa la Fase 1. No se crea un requirements.txt aparte
+# ni un archivo de bloqueo: pyproject.toml sigue siendo la unica fuente.
+# Para actualizar una version: cambiarla aqui, reinstalar con
+# pip install -e ".[dev]" y volver a pasar pytest. Nunca hacer
+# pip install --upgrade suelto, porque eso dejaria de ser reproducible.
+# Compatibilidad: todas estas versiones declaran soporte para Python
+# 3.12 y 3.13, y FastAPI 0.162.0 exige starlette>=0.46 y pydantic>=2,
+# que quedan cubiertos por las versiones fijadas abajo y sus
+# dependencias transitivas (starlette 1.10.0, pydantic-core 2.50.2).
 dependencies = [
     # API web. FastAPI genera la documentacion OpenAPI/Swagger sola.
-    "fastapi",
+    "fastapi==0.162.0",
     # Servidor ASGI para ejecutar la aplicacion.
-    "uvicorn[standard]",
+    "uvicorn[standard]==0.54.0",
     # Validacion de datos y esquemas de la API.
-    "pydantic>=2.0",
+    "pydantic==2.14.2",
     # Carga de variables de entorno desde .env (ver core/config.py).
-    "python-dotenv",
+    "python-dotenv==1.2.4",
     # Datos de zonas horarias para zoneinfo en Windows (Fase 4 en adelante).
     # En Linux/macOS suelen venir del sistema; instalarlo siempre evita
     # que el mismo codigo falle solo en el PC de desarrollo.
-    "tzdata",
+    "tzdata==2026.6",
 ]
 
 [project.optional-dependencies]
 dev = [
     # Pruebas. httpx es necesario para fastapi.testclient.TestClient.
-    "pytest",
-    "httpx",
+    "pytest==9.2.0",
+    "httpx==0.28.1",
 ]
 
 [tool.setuptools.packages.find]

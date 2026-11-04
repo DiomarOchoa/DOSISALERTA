@@ -1,10 +1,11 @@
 # Frontend — DosisAlerta (React + Vite + TypeScript)
 
-> Estado: **Fase 1 — implementada, pendiente de revisión.**
+> Estado: **Fase 1 — aprobada y publicada en GitHub.**
 > Ya existe el proyecto Vite + React + TypeScript con una pantalla
 > inicial que comprueba el backend. Todavia NO hay inicio de sesion,
 > medicamentos, tratamientos ni ninguna vista funcional: eso llega
-> en las Fases 3, 4 y 8. No se ha hecho ningun commit.
+> en las Fases 3, 4 y 8. Primer commit `2bc7ec8` en la rama
+> `main` (2026-11-04).
 
 ## Decisión ya tomada: TypeScript, no JavaScript plano
 
@@ -87,7 +88,8 @@ VITE_API_URL=http://localhost:8000/api/v1
 ## Versiones verificadas en la Fase 1
 
 Probadas en el entorno de desarrollo de la Fase 1 (Node.js 24.22.1,
-npm 10.9.4):
+npm 10.9.4) y en el PC del equipo (Node.js 24.12.0, npm 11.6.2),
+con las mismas versiones:
 
 | Dependencia | Version instalada |
 |---|---|
@@ -95,6 +97,12 @@ npm 10.9.4):
 | Vite | 6.4.5 |
 | TypeScript | 5.9.3 |
 | @vitejs/plugin-react | 4.7.0 |
+
+Reproducibilidad: las versiones exactas están fijadas en
+`package-lock.json`. Para una instalación exactamente igual a la
+bloqueada, usar `npm ci` en lugar de `npm install`; `npm install`
+puede actualizar el bloqueo si se cambian los rangos de
+`package.json`.
 
 ## Reglas que ya estan decididas
 
