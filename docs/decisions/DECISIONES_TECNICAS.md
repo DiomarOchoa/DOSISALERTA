@@ -320,7 +320,76 @@ dejar rastro.
   pruebas (ej. hora inexistente y ambigua) produce lo documentado,
   no una omisión silenciosa ni un duplicado.
 
-## 6. Decisiones que quedan abiertas (con dueño y fase)
+## 6. Cuidadores e IA (decisiones del 2026-11-11)
+
+### D22. Familiares y cuidadores incluidos en la versión 1
+
+Un paciente puede vincular uno o varios cuidadores autorizados
+y un cuidador puede estar vinculado a uno o varios pacientes,
+siempre mediante autorización explícita. Relación muchos a
+muchos mediante `caregiver_links` + `caregiver_audit_log`
+(13 tablas en total, 2 nuevas en la migración inicial de la
+Fase 2). Diseño en `docs/database/RELACIONES_CUIDADORES.md`;
+requisitos RF20–RF22.
+
+### D23. Permisos del cuidador: independientes, explícitos y con límites duros
+
+8 permisos independientes (consultar medicamentos, tratamientos,
+horarios, próximas tomas e historial; recibir notificaciones
+autorizadas; gestionar medicamentos; gestionar horarios), todos
+en NO por defecto y concedidos explícitamente por el paciente.
+La gestión nunca permite modificar dosis prescritas, cambiar
+indicaciones médicas ni suspender tratamientos. No existe permiso
+para confirmar tomas en nombre del paciente. El botón
+«NO LO HE TOMADO» está eliminado definitivamente: los botones
+aprobados son YA LO TOMÉ y RECORDARME DESPUÉS.
+
+### D24. Módulo de IA híbrido como Fase 10 propuesta, post-entrega
+
+Arquitectura híbrida Gemini API + Ollama local aprobada; su
+implementación se propone para una Fase 10 posterior a la
+entrega académica del 25 de noviembre y no forma parte de los
+compromisos de la entrega ni de la sustentación. F1–F9
+permanecen intactas. Diseño en `docs/architecture/MODULO_IA.md`.
+El consentimiento para usar IA y su almacenamiento se diseñan
+en la fase de implementación de IA, no en la Fase 2.
+
+### D25. Tabla 14 `caregiver_link_attempts` (aprobada 2026-11-11)
+
+Espejo de `telegram_link_attempts` para la protección contra
+fuerza bruta de los códigos de invitación de cuidador. Cada
+intento se registra con `chat_id`, hash del código intentado y
+motivo, antes de saber si el código es correcto: el límite de
+5 fallos por `chat_id` en 15 minutos se cuenta por identidad
+del chat y ventana temporal, sin necesidad de conocer el código
+correcto. Su estructura queda documentada desde ahora
+(`MODELO_DATOS.md` §3.14, `RELACIONES_CUIDADORES.md` §13); su
+migración física es de la Fase 6, porque es el bot quien recibe
+los códigos y escribe los intentos. La Fase 2 no se bloquea.
+
+### D26. Columna `details JSONB` en `caregiver_audit_log` con minimización de datos (aprobada 2026-11-11)
+
+La auditoría registra el detalle mínimo necesario de cada
+acción (nombre del permiso o del campo que cambió y sus valores
+anterior y nuevo cuando el cambio es ese campo). **Nunca** se
+guardan tokens, secretos, códigos de invitación (ni su hash),
+contraseñas, dosis, concentraciones, nombres de medicamentos ni
+indicaciones médicas innecesarias. Si un dato no está en la
+lista de permitidos, no se guarda.
+
+### D27. Interpretación estrecha de "gestionar horarios" (aprobada 2026-11-11)
+
+Con `perm_manage_schedules` el cuidador únicamente puede
+modificar las horas (`times`) de horarios existentes, con
+autorización explícita. No puede crear horarios ni cambiar
+frecuencia, días de la semana o intervalos: esas operaciones
+las hace solo el paciente. Cierra la tensión entre el permiso
+de gestión de horarios y la prohibición de cambiar indicaciones
+médicas. El aviso al cuidador es informativo, sin botones, y
+ninguna operación permite al cuidador confirmar o posponer
+tomas.
+
+## 7. Decisiones que quedan abiertas (con dueño y fase)
 
 | Decisión pendiente | Por qué no se cierra en Fase 0 | Se cierra en |
 |---|---|---|

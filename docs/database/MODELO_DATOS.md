@@ -27,6 +27,11 @@ medication_reminders 0───1 medication_intakes
 medication_reminders 1───* notification_logs
 telegram_link_attempts: sin FK a users (se registra por chat_id,
 incluso para intentos de chats no vinculados; ver §3.11 y §7.3)
+
+users 1───* caregiver_links (como paciente) *───1 users (como cuidador)
+caregiver_links 1───* caregiver_audit_log
+caregiver_link_attempts: sin FK a users (se registra por chat_id,
+incluso para intentos de invitaciones inexistentes; ver §3.14)
 ```
 
 El diagrama Mermaid completo está en `docs/diagrams/DIAGRAMAS.md`.
@@ -283,6 +288,105 @@ chat durante 15 minutos. Los intentos de más de 24 horas se ignoran
 para el límite y pueden purgarse en una tarea de limpieza (Fase 6);
 no son historial clínico y no necesitan conservarse indefinidamente.
 
+### 3.12. caregiver_links (vínculo paciente–cuidador, v1)
+
+Diseño completo y auditoría en
+`docs/database/RELACIONES_CUIDADORES.md` (§4, §6, §12).
+Aprobado 2026-11-11. Se crea en la migración inicial de la
+Fase 2, junto a las 11 originales.
+
+| Columna | Tipo | Restricción |
+|---|---|---|
+| id | BIGINT | PK |
+| patient_user_id | BIGINT | NOT NULL, FK → users.id |
+| caregiver_user_id | BIGINT | NULL hasta que el cuidador presenta el código de invitación; NOT NULL cuando el vínculo está ACTIVO (CHECK); FK → users.id |
+| status | VARCHAR(20) | NOT NULL, CHECK IN ('INVITADO','ACTIVO','REVOCADO') |
+| invite_code_hash | VARCHAR(64) | NULL, solo mientras está INVITADO (HMAC-SHA256 con `CAREGIVER_LINK_SECRET`); a NULL al aceptar, revocar o invalidar, en la misma transacción que cambia el estado |
+| invite_expires_at | TIMESTAMPTZ | NULL, solo mientras está INVITADO |
+| failed_attempts | INTEGER | NOT NULL, DEFAULT 0 |
+| last_failed_at | TIMESTAMPTZ | NULL |
+| perm_view_medications | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_view_treatments | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_view_schedules | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_view_upcoming | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_view_history | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_receive_notifications | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_manage_medications | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| perm_manage_schedules | BOOLEAN | NOT NULL, DEFAULT FALSE |
+| invited_at | TIMESTAMPTZ | NOT NULL |
+| invited_by | BIGINT | NOT NULL, FK → users.id |
+| accepted_at | TIMESTAMPTZ | NULL, NOT NULL cuando ACTIVO |
+| revoked_at | TIMESTAMPTZ | NULL, NOT NULL cuando REVOCADO |
+| revoked_by | BIGINT | NULL, FK → users.id |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+Restricciones: índice único parcial por pareja
+(`WHERE status <> 'REVOCADO'`): una sola fila no revocada por
+pareja; al revocar y volver a invitar se crea una fila nueva y
+la anterior queda REVOCADA con su historia intacta. CHECK
+`patient_user_id <> caregiver_user_id`. CHECKs de máquina de
+estados (ACTIVO exige cuidador y `accepted_at`; REVOCADO exige
+`revoked_at`; INVITADO exige ambos NULL). Gestionar exige ver
+(CHECKs sobre los permisos de gestión).
+
+Límites de la gestión (aprobados 2026-11-11): el cuidador nunca
+escribe en `treatment_medications` (dosis) ni en
+`treatments.status`; nunca edita `medications.concentration` ni
+`unit`; solo desactiva medicamentos que no estén en un
+tratamiento activo; con `perm_manage_schedules` solo edita las
+horas (`times`) de horarios existentes: no crea horarios ni
+cambia frecuencia, días o intervalos. No existe permiso para
+confirmar tomas en nombre del paciente.
+
+### 3.13. caregiver_audit_log (auditoría de acciones del cuidador)
+
+Diseño completo en `docs/database/RELACIONES_CUIDADORES.md`
+(§5). Aprobado 2026-11-11. Se crea en la migración inicial de
+la Fase 2. Solo INSERT desde la aplicación: nunca UPDATE ni
+DELETE.
+
+| Columna | Tipo | Restricción |
+|---|---|---|
+| id | BIGINT | PK |
+| caregiver_user_id | BIGINT | NULL en eventos del ciclo de invitación sin cuidador identificado; FK → users.id |
+| patient_user_id | BIGINT | NOT NULL, FK → users.id |
+| action | VARCHAR(50) | NOT NULL |
+| target_type | VARCHAR(50) | NULL |
+| target_id | BIGINT | NULL |
+| details | JSONB | NULL (minimización de datos: solo nombre del permiso o del campo y sus valores anterior y nuevo cuando el cambio es ese campo; nunca tokens, secretos, códigos de invitación, dosis, concentraciones, nombres de medicamentos ni indicaciones) |
+| result | VARCHAR(20) | NOT NULL, CHECK IN ('OK','DENEGADO') |
+| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT now() |
+
+Sin FK a `caregiver_links`: si el vínculo se revoca, la
+auditoría debe conservarse. La pareja (`caregiver_user_id`,
+`patient_user_id`) identifica el vínculo sin depender de su fila.
+
+### 3.14. caregiver_link_attempts (intentos de invitación, antifraude)
+
+Diseño completo en `docs/database/RELACIONES_CUIDADORES.md`
+(§13). Aprobado 2026-11-11. **Su estructura queda documentada
+desde ahora; su migración física es de la Fase 6** (es el bot
+el que recibe los códigos y escribe los intentos).
+
+| Columna | Tipo | Restricción |
+|---|---|---|
+| id | BIGINT | PK |
+| chat_id | BIGINT | NOT NULL (quien intentó, aunque no esté vinculado ni la invitación exista) |
+| telegram_user_id | BIGINT | NULL (si Telegram lo proporciona) |
+| attempted_code_hash | VARCHAR(64) | NULL (HMAC-SHA256 del código intentado, para auditar sin guardar códigos) |
+| success | BOOLEAN | NOT NULL |
+| attempted_at | TIMESTAMPTZ | NOT NULL |
+| reason | VARCHAR(50) | NULL (ej. 'INVALIDO', 'VENCIDO', 'LIMITADO', 'REVOCADO') |
+
+Se usa solo para el límite de intentos: 5 fallos desde el mismo
+`chat_id` en 15 minutos bloquean nuevos intentos desde ese chat
+durante 15 minutos. El intento se registra antes de saber si el
+código es correcto, así que el límite no necesita conocer el
+código correcto: se cuenta por `chat_id` y ventana temporal.
+Los intentos de más de 24 horas se ignoran para el límite y
+pueden purgarse en una tarea de limpieza (Fase 6); no son
+historial clínico y no necesitan conservarse indefinidamente.
+
 ## 4. Entidades adicionales evaluadas (y por qué estas sí, y otras no)
 
 - **refresh_tokens: sí.** Sin ella, un refresh robado no se puede
@@ -301,6 +405,15 @@ no son historial clínico y no necesitan conservarse indefinidamente.
 - **No se añade** una tabla de auditoría genérica: `notification_logs`
   e `intakes` ya cubren lo que hay que demostrar; una auditoría total
   se puede añadir en una versión futura sin cambiar este modelo.
+- **Cuidadores (aprobado v1, 2026-11-11): sí.** Tres tablas nuevas
+  (§3.12–§3.14): `caregiver_links` y `caregiver_audit_log` en la
+  migración inicial de la Fase 2; `caregiver_link_attempts` diseñada
+  ahora y migrada en la Fase 6.
+- **caregiver_link_attempts: sí.** Sin una tabla, el límite de
+  intentos por `chat_id` de los códigos de invitación dependería de
+  memoria que se pierde al reiniciar el bot, y un atacante podría
+  probar códigos sin dejar rastro. Es una tabla de seguridad, no de
+  negocio, igual que `telegram_link_attempts`.
 
 ## 5. Índices recomendados
 
@@ -329,6 +442,22 @@ CREATE UNIQUE INDEX uq_telegram_user ON telegram_accounts(telegram_user_id)
 CREATE INDEX idx_refresh_user ON refresh_tokens(user_id, expires_at);
 CREATE INDEX idx_link_attempts_chat ON telegram_link_attempts(chat_id, attempted_at DESC);
 
+-- Cuidadores (Fase 2: links y auditoría; Fase 6: intentos)
+CREATE UNIQUE INDEX uq_caregiver_active_pair
+  ON caregiver_links(patient_user_id, caregiver_user_id)
+  WHERE status <> 'REVOCADO';
+CREATE UNIQUE INDEX uq_caregiver_pending_pair
+  ON caregiver_links(patient_user_id, caregiver_user_id)
+  WHERE status = 'INVITADO' AND caregiver_user_id IS NOT NULL;
+CREATE INDEX idx_caregiver_invite_hash ON caregiver_links(invite_code_hash)
+  WHERE status = 'INVITADO';
+CREATE INDEX idx_caregiver_by_caregiver ON caregiver_links(caregiver_user_id, status);
+CREATE INDEX idx_caregiver_by_patient ON caregiver_links(patient_user_id, status);
+CREATE INDEX idx_caregiver_audit_patient ON caregiver_audit_log(patient_user_id, created_at DESC);
+CREATE INDEX idx_caregiver_audit_caregiver ON caregiver_audit_log(caregiver_user_id, created_at DESC);
+CREATE INDEX idx_caregiver_attempts_chat ON caregiver_link_attempts(chat_id, attempted_at DESC);
+CREATE INDEX idx_caregiver_attempts_hash ON caregiver_link_attempts(attempted_code_hash, attempted_at DESC);
+
 -- Claves compuestas (id, user_id) para las FK de §7
 CREATE UNIQUE INDEX uq_medications_id_user ON medications(id, user_id);
 CREATE UNIQUE INDEX uq_treatments_id_user ON treatments(id, user_id);
@@ -349,6 +478,11 @@ CREATE UNIQUE INDEX uq_reminders_id_user ON medication_reminders(id, user_id);
 3. Un usuario que desactiva su cuenta (`is_active = FALSE`) conserva
    sus datos; el borrado físico, si algún día se exige por normativa,
    sería un proceso aparte, documentado y fuera de esta versión.
+4. Nunca `DELETE` en `caregiver_links` ni en `caregiver_audit_log`
+   desde la aplicación. Revocar = cambiar `status` a `REVOCADO`;
+   revincular = crear una fila nueva. La única purga permitida es
+   la de `caregiver_link_attempts` (y `telegram_link_attempts`) con
+   más de 24 horas, porque no son historial clínico.
 
 ## 7. Integridad entre cuentas (que un usuario no pueda tocar datos de otro)
 
@@ -379,6 +513,11 @@ por operación:
 | Confirmar/posponer toma | El recordatorio es del usuario (web: token; bot: `chat_id` vinculado) y sigue en estado válido |
 | Cancelar tratamiento | El tratamiento es del usuario; se cancelan solo sus recordatorios pendientes |
 | Vincular Telegram | El código pertenece a la cuenta que lo generó en la web |
+| Consultar como cuidador | El vínculo está `ACTIVO`, el permiso concreto está concedido y el registro es del paciente vinculado; si no, 403 |
+| Gestionar medicamentos como cuidador | Vínculo `ACTIVO` + `perm_manage_medications`; nunca editar `concentration` ni `unit`; desactivar solo si no está en un tratamiento activo |
+| Gestionar horarios como cuidador | Vínculo `ACTIVO` + `perm_manage_schedules`; solo editar las horas (`times`) de horarios existentes |
+| Confirmar o posponer una toma como cuidador | Siempre 403: no existe permiso para confirmar tomas; el aviso al cuidador no lleva botones de acción |
+| Invitar o revocar cuidador | Solo el paciente (o el propio cuidador para darse de baja); la revocación es inmediata y la revinculación crea una fila nueva |
 | Consultar historial/estadísticas | Todas las consultas llevan `user_id` en el WHERE |
 
 **Capa 2 — Base de datos (red de seguridad):** `user_id`

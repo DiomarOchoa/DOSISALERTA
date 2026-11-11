@@ -59,6 +59,29 @@ roadmap, no solo el código.
 - **RF19.** El bot rechaza cualquier comando de un `chat_id` no
   vinculado, sin revelar datos de otros usuarios.
 
+### Familiares y cuidadores (aprobado v1, 2026-11-11)
+
+- **RF20.** Vinculación paciente–cuidador muchos a muchos:
+  un paciente puede vincular uno o varios cuidadores y un
+  cuidador puede estar vinculado a uno o varios pacientes,
+  siempre mediante invitación con código temporal de un solo
+  uso y aceptación explícita del paciente. El paciente puede
+  revocar el acceso en cualquier momento; la revocación es
+  inmediata y el historial se conserva.
+- **RF21.** Permisos independientes de consulta y gestión,
+  concedidos explícitamente por el paciente, por separado:
+  consultar medicamentos, tratamientos, horarios, próximas
+  tomas e historial; recibir notificaciones autorizadas;
+  gestionar medicamentos; gestionar horarios. La gestión del
+  cuidador nunca permite modificar dosis prescritas, cambiar
+  indicaciones médicas ni suspender tratamientos por decisión
+  propia. No existe permiso para confirmar tomas en nombre del
+  paciente.
+- **RF22.** Auditoría de las acciones del cuidador: cada
+  consulta, gestión y aviso recibido queda registrado con
+  actor, paciente, acción, objetivo, resultado y fecha/hora.
+  El paciente puede ver quién hizo qué sobre sus datos.
+
 ## 2. Requisitos no funcionales
 
 - **RNF01. Seguridad:** contraseñas bcrypt, JWT con expiración,
@@ -110,6 +133,8 @@ roadmap, no solo el código.
 | CU07 | Cancelar un tratamiento | Usuario web o Telegram | Pendientes cancelados, historial intacto |
 | CU08 | Vincular / desvincular Telegram | Usuario web + bot | Cuenta vinculada o revocada |
 | CU09 | Recuperar recordatorios tras un reinicio | Sistema (scheduler) | Pendientes recargados, enviados no reenviados, ambiguos reconciliados |
+| CU10 | Invitar y autorizar a un cuidador | Paciente (web o bot) | Vínculo ACTIVO con los permisos concedidos explícitamente |
+| CU11 | Consultar como cuidador autorizado | Cuidador (web o bot) | Solo los datos del paciente vinculado y dentro de sus permisos; sin vínculo o sin permiso, 403 |
 
 ## 4. Cumplimiento de los requisitos oficiales de la asignatura
 
