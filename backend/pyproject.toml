@@ -34,6 +34,14 @@ dependencies = [
     # En Linux/macOS suelen venir del sistema; instalarlo siempre evita
     # que el mismo codigo falle solo en el PC de desarrollo.
     "tzdata==2026.6",
+    # Fase 2: ORM asincrono. El extra [asyncio] trae greenlet, necesario
+    # para el motor async de SQLAlchemy.
+    "sqlalchemy[asyncio]==2.1.8",
+    # Fase 2: migraciones de esquema (Alembic 1.20.1, compatible con
+    # SQLAlchemy 2.1 y Python 3.12/3.13).
+    "alembic==1.20.1",
+    # Fase 2: controlador PostgreSQL asincrono para SQLAlchemy async.
+    "asyncpg==0.32.0",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +49,8 @@ dev = [
     # Pruebas. httpx es necesario para fastapi.testclient.TestClient.
     "pytest==9.2.0",
     "httpx==0.28.1",
+    # Fase 2: pruebas asincronas contra PostgreSQL real.
+    "pytest-asyncio==1.4.1.post1",
 ]
 
 [tool.setuptools.packages.find]
@@ -48,3 +58,11 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]
+# Las pruebas asincronas de la Fase 2 no necesitan decorador por
+# prueba: pytest-asyncio las ejecuta en modo automatico.
+asyncio_mode = "auto"
+# Alcance del bucle de eventos para fixtures asincronas: uno por
+# prueba (comportamiento actual de pytest-asyncio). Se fija
+# explicitamente para que un cambio de version no altere el
+# comportamiento de las pruebas de la Fase 2.
+asyncio_default_fixture_loop_scope = "function"

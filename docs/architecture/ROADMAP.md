@@ -123,6 +123,13 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   no entra en esta aceptación: se migra en la Fase 6.)
 - Commits: `feat: implement database models`,
   `feat: add initial alembic migration`, `test: add model constraint tests`.
+- Estado (2026-11-11): COMPLETADA, sin commit todavía (la
+  autorización de la Fase 2 no incluye commits ni push). Migración
+  inicial `f2a17166bccd` aplicada en PostgreSQL local (13 tablas);
+  31 pruebas de modelos contra PostgreSQL real en verde;
+  `alembic revision --autogenerate` sin diferencias. Puerto de
+  PostgreSQL cambiado a 5433 en `.env` por conflicto con un
+  PostgreSQL 18 nativo en el 5432 (ver `docs/ENTORNO_LOCAL.md`).
 
 ### FASE 3 — Autenticación y seguridad
 

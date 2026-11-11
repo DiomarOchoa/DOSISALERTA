@@ -1,27 +1,29 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-04 — Fase 1 APROBADA Y PUBLICADA
-en GitHub; correcciones finales preparadas, PENDIENTES DE TERCER
-COMMIT (sin hacer todavía).**
-**No se ha iniciado la Fase 2. Commits en la rama `main`,
-publicados el 2026-11-04: `2bc7ec8` (implementación, 51 archivos)
-y `77d0d5c` (auditoría, 7 archivos).**
+Última actualización: **2026-11-11 — Fase 2 COMPLETADA
+(autorizada el 2026-11-11, sin commit ni push todavía, por
+autorización).** Commits en la rama `main`, publicados el
+2026-11-04: `2bc7ec8` (implementación, 51 archivos),
+`77d0d5c` (auditoría, 7 archivos) y `819c44b` (validación de
+puertos, 7 archivos). HEAD sigue en `819c44b`.
 
 ## Fase actual
 
-**FASE 1: Configuración del entorno y backend Python — APROBADA Y
-PUBLICADA. Cierre pendiente solo de PostgreSQL con Docker.**
+**FASE 2: Modelos de datos y migraciones — COMPLETADA el
+2026-11-11 (sin commit ni push, por autorización).**
 
-Lo que significa "aprobada y publicada" aquí es preciso: el equipo
-revisó la Fase 1, la aprobó y la subió a GitHub desde su PC. El
-backend FastAPI arranca y responde `GET /health` con 200, las 3
-pruebas Pytest pasan (en el entorno de desarrollo y en el PC), el
-frontend Vite + React + TypeScript arranca en 5173, su build
-compila sin errores y su botón "Comprobar backend" mostró "Backend
-en línea (versión 0.1.0)" en el PC. No significa que la Fase 1 esté
-cerrada por completo: PostgreSQL no se ha ejecutado en ningún
-entorno todavía (ver "Problemas pendientes"). La Fase 2 no se
-inicia hasta que se autorice por separado.
+La Fase 1 quedó cerrada también en base de datos: PostgreSQL 17.11
+verificado funcionando en el contenedor `dosisalerta-postgres`
+(ver `docs/ENTORNO_LOCAL.md` y el problema 4 de "Problemas
+pendientes", resuelto). La Fase 2 se autorizó expresamente el
+2026-11-11 y se completó el mismo día: modelos SQLAlchemy 2.x
+asíncronos de las 13 tablas (11 originales + `caregiver_links` y
+`caregiver_audit_log`; `caregiver_link_attempts` NO se implementa
+hasta la Fase 6), migración inicial Alembic `f2a17166bccd`
+aplicada en PostgreSQL local, 31 pruebas de modelos contra
+PostgreSQL real en verde (suite completa: 43 pasadas) y
+`alembic revision --autogenerate` sin diferencias entre modelos y
+esquema. La Fase 3 no se inicia hasta que se autorice por separado.
 
 ## Objetivos completados (Fase 0)
 
@@ -211,16 +213,17 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
    que Tailscale diga Connected y que OpenSSH Server esté corriendo.
    El script de conexión quedó guardado de forma persistente en
    `workspace/ssh_tailscale.sh` para no perderlo en reinicios.
-4. **Docker Compose sin ejecutar (pendiente principal del cierre
-   de la Fase 1):** ni en el entorno donde se escribió la Fase 1
-   ni en el PC se ha ejecutado todavía PostgreSQL. La sintaxis YAML
-   se validó y la configuración es la prevista, pero PostgreSQL no
-   se levantó ni respondió a `pg_isready` en ningún entorno. La
-   primera ejecución real debe hacerse y registrarse en un PC con
-   Docker (ver `docker/README.md` para los comandos exactos) antes
-   de dar la Fase 1 por cerrada en base de datos. Mientras tanto,
-   backend y frontend funcionan sin BD, porque en la Fase 1 ningún
-   endpoint la toca.
+4. **Docker Compose sin ejecutar — RESUELTO el 2026-11-11:**
+   PostgreSQL 17.11 verificado funcionando en el contenedor
+   `dosisalerta-postgres` del PC (Up, healthy, `pg_isready`
+   "accepting connections", `SELECT version()` = PostgreSQL
+   17.11, base y usuario `dosisalerta`). Incidente registrado en
+   `docs/ENTORNO_LOCAL.md`: el PC tiene además un PostgreSQL 18
+   nativo que ocupa el puerto 5432 del host, por lo que el
+   contenedor se publica ahora en el **5433** (`POSTGRES_PORT=5433`
+   en `.env`) y la contraseña del usuario `dosisalerta` se alineó
+   con `.env` mediante `ALTER USER` dentro del contenedor. No se
+   tocó el PostgreSQL 18 nativo.
 5. **Versiones exactas de librerías Python — RESUELTO en la
    auditoría de cierre:** `backend/pyproject.toml` fija ahora las
    versiones exactas verificadas en los dos entornos (FastAPI
@@ -307,11 +310,12 @@ aquí, sin commit ni push todavía:
 
 ## Próxima fase (SOLO cuando se autorice)
 
-**FASE 2: Modelos de datos y migraciones.**
-Ver criterios de aceptación completos en `docs/architecture/ROADMAP.md`,
-sección Fase 2. En resumen: modelos SQLAlchemy de las 11 tablas,
-migración inicial con Alembic, restricciones y FK compuestas, y
-pruebas de que un cruce de cuentas falla por FK. Nada de
-autenticación, medicamentos, tratamientos ni bot todavía: eso sigue
-siendo de fases posteriores, y la Fase 2 no se inicia hasta que el
-equipo autorice y apruebe la Fase 1.
+**FASE 3: Autenticación y seguridad.** Ver criterios de
+aceptación completos en `docs/architecture/ROADMAP.md`, sección
+Fase 3. En resumen: registro y login, hash bcrypt, JWT access +
+refresh, y que solo el dueño vea sus datos. La Fase 2 ya está
+completada (ver "Fase actual"): modelos SQLAlchemy de las 13
+tablas, migración inicial con Alembic aplicada, restricciones y
+FK compuestas, y pruebas de que un cruce de cuentas falla por FK.
+La Fase 3 no se inicia hasta que el equipo la autorice por
+separado.
