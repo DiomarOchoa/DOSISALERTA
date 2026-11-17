@@ -1,12 +1,15 @@
 # Backend — DosisAlerta (Python + FastAPI)
 
-> Estado: **Fase 1 — aprobada y publicada en GitHub.**
-> Ya existe `pyproject.toml`, `app/main.py`, la configuracion central
-> y el endpoint de salud con su prueba. Todavia NO hay modelos,
-> migraciones, autenticacion, medicamentos ni recordatorios: eso
-> llega en las fases 2 a 6. Commits en la rama `main` (2026-11-04):
-> `2bc7ec8` (implementación) y `77d0d5c` (auditoría y fijación de
-> dependencias).
+> Estado: **Fases 1 y 2 — aprobadas y publicadas en GitHub.**
+> Ya existen `pyproject.toml`, `app/main.py`, la configuracion central,
+> el endpoint de salud con su prueba, los modelos SQLAlchemy de las
+> 13 tablas y la migración inicial Alembic `f2a17166bccd` aplicada.
+> Todavia NO hay autenticacion, medicamentos ni recordatorios: eso
+> llega en las fases 3 a 6. Commits en la rama `main`: `2bc7ec8`
+> (implementación Fase 1, 2026-11-04), `77d0d5c` (auditoría Fase 1,
+> 2026-11-04), `819c44b` (correcciones Fase 1, 2026-11-04),
+> `e8d4f0e` (decisiones cuidadores, auditoría e IA, 2026-11-11) y
+> `5f75de0` (Fase 2, 2026-11-11).
 >
 > Correccion importante de la Fase 0: un borrador anterior,
 > interrumpido, usaba un stack distinto al exigido por la asignatura.
@@ -15,7 +18,7 @@
 > Python, sin excepcion, y en esta documentacion no se mantiene
 > ninguna segunda arquitectura.
 
-## Lo que ya existe (Fase 1)
+## Lo que ya existe (Fases 1 y 2)
 
 ```text
 backend/
@@ -25,15 +28,15 @@ backend/
     ├── core/
     │   └── config.py     # Configuracion central desde .env
     ├── config/           # Reservado: ajustes por entorno (futuro)
-    ├── database/         # Reservado: sesion async SQLAlchemy (Fase 2)
-    ├── models/           # Reservado: tablas SQLAlchemy (Fase 2)
+    ├── database/         # Sesion async SQLAlchemy (Fase 2)
+    ├── models/           # Tablas SQLAlchemy, 13 tablas (Fase 2)
     ├── schemas/          # Reservado: esquemas Pydantic (Fase 3+)
-    ├── repositories/     # Reservado: solo consultas a BD (Fase 2)
+    ├── repositories/     # Solo consultas a BD (Fase 2)
     ├── services/         # Reservado: logica de negocio (Fase 4+)
     ├── api/
     │   └── routers/
     │       └── health.py # GET /health y GET /api/v1/health
-    ├── bot/              # Reservado: python-telegram-bot (Fase 6)
+    ├── bot/              # Esqueleto de demostración local, sin publicar (Fase 6)
     ├── scheduler/        # Reservado: motor de recordatorios (Fase 5)
     ├── algorithms/       # Reservado: cola de prioridad (Fase 5)
     ├── utils/            # Reservado: tiempo, zonas horarias, formato
@@ -69,7 +72,7 @@ En la Fase 1 solo existe el proceso API. El proceso BOT y el
 scheduler (que vivira en el lifespan de la API) llegan en las
 Fases 5 y 6.
 
-## Ejecucion (Fase 1)
+## Ejecucion (Fases 1 y 2)
 
 ### Windows PowerShell
 
@@ -77,7 +80,9 @@ Fases 5 y 6.
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -87,7 +92,9 @@ uvicorn app.main:app --reload --port 8000
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -95,10 +102,14 @@ uvicorn app.main:app --reload --port 8000
   http://localhost:8000/docs
 - Comprobacion rapida: `curl http://localhost:8000/health`
 - Pruebas: `pytest` (desde `backend/`, con el entorno activado).
-  En la Fase 1 son 3 pruebas y no necesitan Docker ni PostgreSQL.
-- **No ejecutar `alembic` todavia:** no hay migraciones hasta la
-  Fase 2. Si se ejecuta ahora, fallara porque no existe el paquete
-  `alembic` ni el directorio de migraciones, y eso es lo esperado.
+  Son 43 pruebas (12 de la Fase 1 y 31 de la Fase 2). Las de
+  modelos necesitan PostgreSQL en marcha y usan la base de datos
+  aislada `dosisalerta_test`, que la propia sesión de pruebas crea
+  y migra; la base de desarrollo no recibe filas de prueba.
+- Migraciones: `alembic upgrade head` aplica la migración inicial
+  `f2a17166bccd` (13 tablas de la Fase 2). `alembic current` debe
+  mostrar `f2a17166bccd (head)`. Nunca ejecutar
+  `alembic downgrade` en desarrollo.
 
 ## Configuracion
 
@@ -106,21 +117,23 @@ Toda la configuracion vive en `app/core/config.py` y sale de
 variables de entorno (archivo `.env` en la raiz, copiado desde
 `.env.example`, en desarrollo). No hay credenciales reales en el
 codigo y `database_url` nunca se imprime en logs, porque contiene
-la contrasena. En la Fase 1 solo se usan: nombre de la app, puerto
-y origenes CORS (por defecto, solo `http://localhost:5173`). Las
-variables de PostgreSQL se guardan ya en la configuracion para la
-Fase 2, pero no se abre ninguna conexion todavia. JWT y token de
-Telegram no se leen todavia: se anaden en sus fases. Validacion de
+la contrasena. El backend usa 9 variables implementadas: `HOST`,
+`PORT`, `DEBUG`, `CORS_ORIGINS` y las cinco `POSTGRES_*` (ver
+`.env.example`). Desde la Fase 2 se abre conexion a PostgreSQL con
+esas variables. JWT y token de Telegram son variables reservadas
+para las Fases 3 y 6 y no se leen todavia: se anaden en sus fases.
+Validacion de
 puertos: `PORT` y `POSTGRES_PORT` deben ser enteros entre 1 y
 65535; una variable vacia o ausente usa el defecto, y un valor
 invalido hace fallar el arranque con un error que nombra la
 variable, en lugar de arrancar en silencio en otro puerto (ver
 `app/tests/test_config.py`).
 
-## Versiones verificadas en la Fase 1
+## Versiones verificadas (Fases 1 y 2)
 
-Probadas en el entorno de desarrollo de la Fase 1 (Python 3.12.3)
-y en el PC del equipo (Python 3.13.4), con las mismas versiones:
+Versión canónica: Python 3.13.4 (fijada en la Fase A con
+`.python-version` y `requires-python >=3.12,<3.14`). Probada en el
+PC del equipo con las mismas versiones de dependencias:
 
 | Dependencia | Version instalada |
 |---|---|
@@ -133,15 +146,20 @@ y en el PC del equipo (Python 3.13.4), con las mismas versiones:
 | HTTPX | 0.28.1 |
 
 Desde la auditoría de cierre, esas versiones están fijadas con `==`
-en `pyproject.toml`. No hay `requirements.txt` aparte: para
+en `pyproject.toml`. La instalación reproducible usa además
+`requirements-lock.txt` (36 dependencias fijadas, Fase A): `pip install -r
+requirements-lock.txt` y luego `pip install -e . --no-deps`. No
+hay `requirements.txt` aparte y el lock no se edita a mano: para
 actualizar una versión hay que cambiarla en `pyproject.toml`,
-reinstalar y volver a pasar `pytest`.
+reinstalar en un entorno limpio, volver a pasar `pytest` (43
+pruebas) y regenerar el lock con `pip freeze` (procedimiento
+completo en la cabecera del propio lock).
 
 Observacion sin ocultar: con esta combinacion de versiones, Pytest
 muestra una advertencia de deprecacion de Starlette sobre
-`TestClient` (sugiere `httpx2` en el futuro). Las 3 pruebas pasan
+`TestClient` (sugiere `httpx2` en el futuro). Las 43 pruebas pasan
 igual; no se cambio la dependencia para no introducir una libreria
-no verificada en la Fase 1.
+no verificada.
 
 ## Reglas que ya estan decididas
 

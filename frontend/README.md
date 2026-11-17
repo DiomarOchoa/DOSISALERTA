@@ -1,12 +1,14 @@
 # Frontend — DosisAlerta (React + Vite + TypeScript)
 
-> Estado: **Fase 1 — aprobada y publicada en GitHub.**
+> Estado: **Fases 1 y 2 — aprobadas y publicadas en GitHub.**
 > Ya existe el proyecto Vite + React + TypeScript con una pantalla
 > inicial que comprueba el backend. Todavia NO hay inicio de sesion,
 > medicamentos, tratamientos ni ninguna vista funcional: eso llega
-> en las Fases 3, 4 y 8. Commits en la rama `main` (2026-11-04):
-> `2bc7ec8` (implementación) y `77d0d5c` (auditoría y fijación de
-> dependencias).
+> en las Fases 3, 4 y 8. Commits en la rama `main`: `2bc7ec8`
+> (implementación, 2026-11-04), `77d0d5c` (auditoría y fijación de
+> dependencias, 2026-11-04), `819c44b` (correcciones, 2026-11-04),
+> `e8d4f0e` (decisiones, 2026-11-11) y `5f75de0` (Fase 2,
+> 2026-11-11).
 
 ## Decisión ya tomada: TypeScript, no JavaScript plano
 
@@ -16,7 +18,7 @@ ejecutar, facilitan el refactor y hacen el código más defendible en
 sustentación, con un coste de aprendizaje bajo porque Vite ya lo
 soporta sin configuración extra.
 
-## Lo que ya existe (Fase 1)
+## Lo que ya existe (Fases 1 y 2)
 
 ```text
 frontend/
@@ -44,7 +46,7 @@ configurada y un boton "Comprobar backend" que llama a
 mensaje claro en lugar de fallar en silencio. No es un modulo
 funcional: no hay formularios de medicamentos ni de tratamientos.
 
-## Ejecucion (Fase 1)
+## Ejecucion (Fases 1 y 2)
 
 ### Windows PowerShell
 

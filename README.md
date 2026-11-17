@@ -85,12 +85,12 @@ datos para la web y otra para Telegram.
 
 | Capa | Tecnología | Versión / nota |
 |---|---|---|
-| Lenguaje backend | Python | 3.12 o superior (único backend) |
+| Lenguaje backend | Python | 3.13.4, versión canónica (`requires-python >=3.12,<3.14`) (único backend) |
 | API | FastAPI + Uvicorn | Documentación OpenAPI/Swagger automática |
 | ORM y migraciones | SQLAlchemy 2.0 (async) + Alembic | Instalado en la Fase 2: SQLAlchemy 2.1.8, Alembic 1.20.1, asyncpg 0.32.0. |
 | Validación | Pydantic v2 | Instalado en la Fase 1 (2.14.2). Esquemas de entrada y salida. |
 | Configuración | python-dotenv | Instalado en la Fase 1 (1.2.4). Secretos solo en `.env`, nunca en el repo. |
-| Base de datos | PostgreSQL | 17-alpine en Docker (desarrollo). Verificado 17.11 el 2026-11-11; el contenedor publica en el puerto del host 5433 (el 5432 lo ocupa un PostgreSQL 18 nativo). |
+| Base de datos | PostgreSQL | `postgres:17.11-alpine` en Docker (desarrollo). Verificado 17.11 el 2026-11-11; el contenedor publica en el puerto del host 5433 (el 5432 lo ocupa un PostgreSQL 18 nativo). |
 | Bot | python-telegram-bot | Esqueleto de demostración local, sin publicar (python-telegram-bot 22.8 en el árbol de trabajo, sin commit). Integración completa en la Fase 6. Polling en desarrollo (ver decisiones). |
 | Autenticación | JWT (PyJWT) + bcrypt | Previsto para la Fase 3, no instalado. Access 60 min, refresh 7 días. |
 | Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). En la Fase 2 se añadió pytest-asyncio 1.4.1.post1 para las 31 pruebas de modelos contra PostgreSQL real. |
@@ -98,16 +98,16 @@ datos para la web y otra para Telegram.
 | Entorno | Docker y Docker Compose | Solo PostgreSQL, verificado el 2026-11-11 (ver `docs/ENTORNO_LOCAL.md`) |
 | Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `5f75de0`; commits `2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e` y `5f75de0` |
 
-Versiones verificadas en la Fase 1: FastAPI 0.162.0, Uvicorn
-0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React 19.3.1, Vite 6.4.5,
-TypeScript 5.9.3. Se verificaron en dos entornos: el de desarrollo
-(Python 3.12.3, Node.js 24.22.1, npm 10.9.4) y el PC del equipo
-(Python 3.13.4, Node.js 24.12.0, npm 11.6.2), con las mismas
-versiones de dependencias en ambos. En el PC, además, `pytest`
-dio 3 passed, `uvicorn` arrancó en 8000, `/health` respondió
+Versiones canónicas (Fase A): Python 3.13.4, Node.js 24.12.0,
+npm 11.6.2, PostgreSQL 17.11. Dependencias verificadas: FastAPI
+0.162.0, Uvicorn 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React
+19.3.1, Vite 6.4.5, TypeScript 5.9.3. En el PC del equipo,
+`pytest` dio 43 passed (12 de la Fase 1 y 31 de la Fase 2),
+`uvicorn` arrancó en 8000, `/health` respondió
 `{"status":"ok","app":"DosisAlerta","version":"0.1.0"}` y el
 frontend en 5173 mostró "Backend en línea (versión 0.1.0)".
-Detalle completo en `backend/README.md` y `frontend/README.md`.
+Detalle completo en `backend/README.md`, `frontend/README.md` y
+`docs/GUIA_INSTALACION_WINDOWS.md`.
 
 La justificación de cada elección, y lo que se rechazó, está en
 `docs/decisions/DECISIONES_TECNICAS.md`. No se añade ninguna
@@ -139,15 +139,18 @@ DosisAlerta/
 └── ESTADO_PROYECTO.md
 ```
 
-## Requisitos previos (para la Fase 1)
+## Requisitos previos (Fases 1 y 2)
 
-- Python 3.12 o superior.
-- Node.js 20.19+ o 22 LTS (para el frontend, Fase 1/8).
-- Docker y Docker Compose (para PostgreSQL local), o un PostgreSQL
-  17 instalado localmente.
+- Python 3.13.4 (versión canónica).
+- Node.js 24.12.0 y npm 11.6.2 (versiones canónicas).
+- Docker y Docker Compose (para PostgreSQL local).
 - Git.
-- Una cuenta de Telegram y un bot creado con @BotFather (solo se
-  necesita el token en la Fase 6; no se necesita para la Fase 1).
+- Una cuenta de GitHub propia (para contribuir; ver
+  `docs/GUIA_INSTALACION_WINDOWS.md`, paso 20).
+
+> Telegram no es un requisito previo: el bot es de la Fase 6, sin
+> iniciar, y no se necesita ningún token de BotFather para instalar
+> el entorno común.
 
 ## Instalación y ejecución — Fases 1 y 2 (verificadas)
 
@@ -165,24 +168,32 @@ DosisAlerta/
 ```powershell
 # 1. Variables de entorno (nunca subir .env a Git)
 Copy-Item .env.example .env
-# Editar .env: contraseña de PostgreSQL
+# Editar .env: contraseña de PostgreSQL y POSTGRES_PORT según el
+# paso 8 de docs/GUIA_INSTALACION_WINDOWS.md (detectar puertos
+# primero). Ver .env.example: 9 variables implementadas; JWT y
+# Telegram son reservadas para las Fases 3 y 6.
 
 # 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
+# Detectar puertos primero (Test-NetConnection a 5432 y 5433):
+# POSTGRES_PORT es el primer puerto libre. Ver la guía, paso 8.
+docker compose config --quiet
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U dosisalerta -d dosisalerta
 
-# 3. Backend (Fase 1)
+# 3. Backend (Fases 1 y 2)
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 # API en http://localhost:8000 — documentación en http://localhost:8000/docs
-# Pruebas (en otra terminal, desde backend/): pytest
+# Pruebas (en otra terminal, desde backend/): pytest (43 passed)
 
-# 4. Frontend (Fase 1)
+# 4. Frontend (Fases 1 y 2)
 cd ..\frontend
-npm install
+npm ci
 Copy-Item .env.example .env
 npm run dev
 # Web en http://localhost:5173
@@ -193,24 +204,30 @@ npm run dev
 ```bash
 # 1. Variables de entorno (nunca subir .env a Git)
 cp .env.example .env
-# Editar .env: contraseña de PostgreSQL
+# Editar .env: contraseña de PostgreSQL y POSTGRES_PORT con el
+# primer puerto libre (ver docs/GUIA_INSTALACION_WINDOWS.md,
+# paso 8). Ver .env.example: 9 variables implementadas; JWT y
+# Telegram son reservadas para las Fases 3 y 6.
 
 # 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
+docker compose config --quiet
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U dosisalerta -d dosisalerta
 
-# 3. Backend (Fase 1)
+# 3. Backend (Fases 1 y 2)
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 # API en http://localhost:8000 — documentación en http://localhost:8000/docs
-# Pruebas (en otra terminal, desde backend/): pytest
+# Pruebas (en otra terminal, desde backend/): pytest (43 passed)
 
-# 4. Frontend (Fase 1)
+# 4. Frontend (Fases 1 y 2)
 cd ../frontend
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 # Web en http://localhost:5173

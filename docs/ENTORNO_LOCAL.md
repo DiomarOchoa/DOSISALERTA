@@ -43,8 +43,8 @@ PostgreSQL 18 nativo (ver "Problema conocido" abajo).
 ## 3. Estructura relevante
 
 - `docker-compose.yml`: define **únicamente** PostgreSQL. El backend
-  FastAPI y el frontend React **no** se levantan en Docker en la
-  Fase 1: se ejecutan fuera, con `uvicorn` y `npm run dev`.
+  FastAPI y el frontend React **no** se levantan en Docker: se
+  ejecutan fuera, con `uvicorn` y `npm run dev`.
 - Servicio PostgreSQL: nombre `postgres`, contenedor
   `dosisalerta-postgres`, volumen `postgres-data`, puerto del host
   `${POSTGRES_PORT:-5432}` hacia el `5432` del contenedor. En este
@@ -82,6 +82,13 @@ docker compose exec postgres psql -U dosisalerta -d dosisalerta -c 'SELECT curre
 Éxito: `pg_isready` responde "accepting connections", el healthcheck
 del contenedor pasa a `healthy`, y las consultas devuelven
 PostgreSQL 17 con base de datos `dosisalerta` y usuario `dosisalerta`.
+
+Pruebas: desde `backend/`, con el entorno virtual activado,
+`pytest` debe dar 43 passed (12 de la Fase 1 y 31 de la Fase 2).
+Las pruebas de modelos necesitan PostgreSQL en marcha y usan la
+base de datos aislada `dosisalerta_test`, que la propia sesión de
+pruebas crea y migra; la base de desarrollo no recibe filas de
+prueba. Detalle en `docs/GUIA_INSTALACION_WINDOWS.md`, paso 17.
 
 ## 6. Cómo detener el servicio sin eliminar los datos
 
