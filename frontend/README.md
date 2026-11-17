@@ -50,7 +50,7 @@ funcional: no hay formularios de medicamentos ni de tratamientos.
 
 ```powershell
 cd frontend
-npm install
+npm ci
 Copy-Item .env.example .env
 npm run dev
 ```
@@ -59,7 +59,7 @@ npm run dev
 
 ```bash
 cd frontend
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
@@ -86,11 +86,13 @@ VITE_API_URL=http://localhost:8000/api/v1
 - No hay secretos en `.env.example`: solo una URL local. El `.env`
   real nunca se sube a Git (esta en `.gitignore`).
 
-## Versiones verificadas en la Fase 1
+## Versiones verificadas (Fase D)
 
-Probadas en el entorno de desarrollo de la Fase 1 (Node.js 24.22.1,
-npm 10.9.4) y en el PC del equipo (Node.js 24.12.0, npm 11.6.2),
-con las mismas versiones:
+Versiones canonicas fijadas en la Fase A (`.nvmrc`, `engines` en
+`package.json` y `engine-strict` en `.npmrc`): Node.js 24.12.0 y
+npm 11.6.2, verificadas en el PC del equipo con `npm ci` y
+`npm run build` correctos. Las versiones exactas de las dependencias
+son las de la tabla:
 
 | Dependencia | Version instalada |
 |---|---|
