@@ -3,13 +3,13 @@
 Carpeta reservada para archivos de despliegue que se anadian en fases
 posteriores (por ejemplo, un `Dockerfile` del backend en la Fase 9).
 
-## PostgreSQL en desarrollo (Fase 1)
+## PostgreSQL en desarrollo (Fase B)
 
-En la Fase 1, el unico archivo de entorno es `../docker-compose.yml`,
-que define solo PostgreSQL 17 para desarrollo local. El backend y el
-frontend **no** se levantan con Docker en esta fase: se ejecutan
-fuera, con `uvicorn` y con `npm run dev`, para depurarlos con
-facilidad.
+El unico archivo de entorno es `../docker-compose.yml`, que define
+solo PostgreSQL 17.11 para desarrollo local (imagen fijada en la
+Fase A: `postgres:17.11-alpine`). El backend y el frontend **no**
+se levantan con Docker: se ejecutan fuera, con `uvicorn` y con
+`npm run dev`, para depurarlos con facilidad.
 
 ### Puesta en marcha (en un PC con Docker)
 
@@ -48,6 +48,29 @@ El puerto del host es configurable con `POSTGRES_PORT` en `.env`
 `POSTGRES_PORT` en `.env` sin tocar `docker-compose.yml`, y el
 backend usara ese mismo valor (ver `backend/app/core/config.py`).
 
+Antes de levantar el contenedor en un PC nuevo, comprobar que
+puerto esta libre (Windows PowerShell, sin Docker):
+
+```powershell
+Test-NetConnection -ComputerName 127.0.0.1 -Port 5432 -InformationLevel Quiet
+Test-NetConnection -ComputerName 127.0.0.1 -Port 5433 -InformationLevel Quiet
+```
+
+`True` significa ocupado; `False`, libre. Poner en `.env` el
+primer puerto libre (5432, o 5433 si el 5432 esta ocupado, como
+pasa en el PC del equipo, donde el 5432 lo ocupa un PostgreSQL 18
+nativo). No asumir que todos los PC tienen la misma configuracion:
+cada uno se comprueba por separado. Despues de levantar el
+contenedor, verificar la version real con:
+
+```bash
+docker compose exec postgres psql -U dosisalerta -d dosisalerta -c 'SELECT version();'
+```
+
+Debe devolver PostgreSQL 17.11. Si devuelve otra version (por
+ejemplo, 18), el contenedor no es el correcto o el puerto apunta
+a otro servidor: detenerse y revisar antes de seguir.
+
 ### Persistencia
 
 Los datos viven en el volumen `postgres-data`. Estos comandos
@@ -64,18 +87,19 @@ prueba. Solo usarlo cuando se quiera empezar de cero:
 docker compose down -v
 ```
 
-### Limitacion honesta de la Fase 1
+### Verificacion (2026-11-11, PC del equipo)
 
-**PostgreSQL NO se ejecuto en el entorno donde se escribio la
-Fase 1, porque ahi no hay Docker instalado.** La sintaxis del
-archivo `docker-compose.yml` si se valido (YAML valido, servicio
-`postgres`, imagen `postgres:17-alpine`, volumen `postgres-data`),
-pero eso no es lo mismo que haber levantado el servicio. La primera
-ejecucion real, con su salida de `pg_isready`, debe hacerse y
-registrarse en el PC del equipo, donde si haya Docker, antes de dar
-la Fase 1 por verificada en base de datos. No se declara que
-PostgreSQL funciona sin esa comprobacion.
+PostgreSQL ya se ejecuto y se verifico en el PC del equipo: el
+contenedor `dosisalerta-postgres` corre PostgreSQL 17.11,
+publicado en el puerto 5433 del host (el 5432 lo ocupa el
+PostgreSQL 18 nativo), con la migracion `f2a17166bccd` aplicada
+(13 tablas) y `pg_isready` respondiendo `accepting connections`.
+La primera ejecucion en cada PC nuevo debe repetirse y
+registrarse con esa misma comprobacion (`pg_isready` y
+`SELECT version();` = 17.11) antes de dar el entorno por
+verificado en base de datos. No se declara que PostgreSQL
+funciona sin esa comprobacion.
 
-No se crea todavia ningun `Dockerfile` porque en la Fase 1 no hay
-modelos ni migraciones que empaquetar: crearlo ahora seria inventar
-una imagen sobre un backend incompleto.
+No se crea todavia ningun `Dockerfile` porque no hay modelos ni
+migraciones que empaquetar en una imagen: crearlo ahora seria
+inventar una imagen sobre un backend incompleto.

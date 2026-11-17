@@ -1,26 +1,29 @@
-# DosisAlerta — docker-compose.yml (Fase 1)
+# DosisAlerta — docker-compose.yml (Fase B, entorno de 4 PCs)
 #
 # Alcance: este archivo define UNICAMENTE el entorno de desarrollo
 # local (PostgreSQL). El backend FastAPI y el frontend React NO se
-# levantan aqui: en la Fase 1 se ejecutan fuera de Docker, con
-# uvicorn y con npm run dev, para que depurarlos sea sencillo.
+# levantan aqui: se ejecutan fuera de Docker, con uvicorn y con
+# npm run dev, para que depurarlos sea sencillo.
 #
-# Por que solo PostgreSQL aqui:
-# - Es el unico servicio externo que el backend necesitara en la Fase 2.
-# - Evita inventar una imagen de backend antes de que exista una API
-#   con modelos y migraciones que contenerizar.
+# Imagen fijada en la Fase A: postgres:17.11-alpine, verificada en
+# Docker Hub y en el PC del equipo el 2026-11-11 (PostgreSQL 17.11
+# en el contenedor dosisalerta-postgres). No cambiar la imagen sin
+# una version aprobada y justificada.
 #
-# Uso (Fase 1):
+# Uso:
 #   cp .env.example .env   # y completar valores
 #   docker compose up -d postgres
 #   docker compose ps
 #   docker compose down    # detener sin borrar datos
-#   docker compose down -v # detener Y borrar el volumen (datos de prueba)
 #
-# Estado: SIN EJECUTAR en el entorno donde se escribio la Fase 1
-# (aqui no hay Docker instalado, ver docker/README.md). La primera
-# ejecucion real y su salida deben registrarse en el PC del equipo,
-# donde si haya Docker, antes de dar la Fase 1 por verificada en BD.
+# NUNCA ejecutar `docker compose down -v`: borra el volumen
+# postgres-data y todos los datos de desarrollo.
+#
+# Puerto del host: POSTGRES_PORT en .env (5432 por defecto). En el
+# PC del equipo es 5433 porque el 5432 lo ocupa un PostgreSQL 18
+# nativo; en cada PC se comprueba antes cual esta libre (ver
+# docker/README.md) y se pone ese valor en .env, sin tocar este
+# archivo. El puerto dentro del contenedor siempre es 5432.
 
 services:
   postgres:
