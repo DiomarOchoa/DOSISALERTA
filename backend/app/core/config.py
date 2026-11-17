@@ -11,10 +11,11 @@ Reglas que este archivo cumple:
 - No se usa ``pydantic-settings``: la configuracion se construye con
   Pydantic (validacion de tipos) + ``python-dotenv`` (carga de
   ``.env``), que ya son dependencias del proyecto. Asi no se anade
-  ninguna libreria innecesaria en la Fase 1.
-- Lo que todavia no se usa en la Fase 1 (JWT, token de Telegram) NO
-  se lee aqui todavia: se anadira en su fase, para no aparentar
-  funcionalidades que no existen.
+  ninguna libreria innecesaria.
+- Lo que todavia no se usa (JWT, token de Telegram) NO se lee aqui
+  todavia: se anadira en su fase (Fase 3 y Fase 6), para no aparentar
+  funcionalidades que no existen. Ver ``.env.example``: esas
+  variables estan marcadas como RESERVADAS.
 
 Uso::
 
@@ -32,8 +33,9 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 # Carga .env si existe. Si no existe, no falla: se usan los valores
-# por defecto de desarrollo local que hay abajo. En la Fase 1 eso es
-# suficiente porque todavia no hay base de datos ni secretos que leer.
+# por defecto de desarrollo local que hay abajo. Desde la Fase 2 hay
+# base de datos y secretos que leer (POSTGRES_PASSWORD), asi que en
+# un PC sin .env el backend arranca solo con los defectos locales.
 load_dotenv()
 
 
@@ -83,7 +85,8 @@ class Settings(BaseModel):
     app_name: str = "DosisAlerta"
     debug: bool = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
 
-    # Servidor HTTP (uvicorn). Por defecto, el puerto de la Fase 0/1.
+    # Servidor HTTP (uvicorn). Los valores de abajo son los defectos;
+    # las variables HOST y PORT los sobrescriben si existen.
     host: str = "127.0.0.1"
     port: int = 8000
 
@@ -91,9 +94,10 @@ class Settings(BaseModel):
     # En desarrollo, solo el frontend local de Vite.
     cors_origins_raw: str = "http://localhost:5173"
 
-    # PostgreSQL (docker-compose.yml). En la Fase 1 solo se guarda la
-    # configuracion; la conexion con SQLAlchemy llega en la Fase 2.
-    # Por eso no hay ningun motor ni sesion de base de datos todavia.
+    # PostgreSQL (docker-compose.yml). Este archivo solo guarda la
+    # configuracion; el motor y la sesion de SQLAlchemy viven en
+    # `database/` y `models/` desde la Fase 2, y Alembic toma la URL
+    # de aqui (`database_url`).
     postgres_db: str = "dosisalerta"
     postgres_user: str = "dosisalerta"
     postgres_password: str = "dosisalerta"
@@ -119,7 +123,8 @@ class Settings(BaseModel):
 
     @property
     def database_url(self) -> str:
-        """URL async para SQLAlchemy (Fase 2). En Fase 1 no se usa.
+        """URL async para SQLAlchemy. La usan los modelos (Fase 2)
+        y Alembic para las migraciones.
 
         La contrasena va en la URL solo cuando SQLAlchemy la necesite.
         Nunca se imprime esta URL en logs: contiene la contrasena.
