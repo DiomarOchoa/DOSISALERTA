@@ -20,8 +20,9 @@ PostgreSQL 18 nativo (ver "Problema conocido" abajo).
 
 - Windows 10/11 con WSL2.
 - Docker Desktop instalado y en ejecución.
-- Python 3.12+ (el proyecto usa 3.13.4 en el PC).
-- Node.js para el frontend (React + Vite + TypeScript).
+- Python 3.13.4 (versión canónica, Fase A).
+- Node.js 24.12.0 y npm 11.6.2 para el frontend (React + Vite +
+  TypeScript; versiones canónicas, Fase A).
 - PowerShell 5.1.
 - Repositorio clonado en `C:\Users\ASUS\Desktop\PROYECTO_ED2\DOSISALERTA`,
   rama `main`.
@@ -34,8 +35,10 @@ PostgreSQL 18 nativo (ver "Problema conocido" abajo).
 | Docker Compose | v5.7.0 |
 | Docker Engine | servidor activo, Linux x86_64, WSL2 |
 | Recursos Docker | 12 CPU, 11.53 GiB de memoria |
-| PostgreSQL (imagen) | postgres:17-alpine |
+| PostgreSQL (imagen) | postgres:17.11-alpine |
 | Python | 3.13.4 |
+| Node.js | 24.12.0 |
+| npm | 11.6.2 |
 
 ## 3. Estructura relevante
 
@@ -103,7 +106,16 @@ docker compose down        # detiene sin borrar el volumen ni los datos
 - `TELEGRAM_BOT_TOKEN` (pendiente: sin token real de BotFather aún)
 - `TELEGRAM_BOT_USERNAME`
 - `TELEGRAM_LINK_SECRET`
-- `VITE_API_URL`
+
+> Reconciliación 2026-11-17 (Fase E): `VITE_API_URL` **ya no**
+> pertenece a esta lista. Desde la Fase C solo vive en
+> `frontend/.env.example` (configuración del frontend); el
+> `.env` raíz ya no la trae y Vite no lee el `.env` raíz. Si un
+> `.env` raíz antiguo todavía la tiene, es una clave ignorada.
+> Las variables de arriba se dividen en **implementadas**
+> (PostgreSQL y servidor: `POSTGRES_*`, `HOST`, `PORT`, `DEBUG`,
+> `CORS_ORIGINS`) y **reservadas** (JWT para la Fase 3 y Telegram
+> para la Fase 6, que el backend aún no lee); ver `.env.example`.
 
 Los tres secretos (`POSTGRES_PASSWORD`, `JWT_SECRET`,
 `TELEGRAM_LINK_SECRET`) deben ser valores distintos, generados con
@@ -137,7 +149,7 @@ cd C:\Users\ASUS\Desktop\PROYECTO_ED2\DOSISALERTA
 docker compose up -d postgres
 ```
 
-Una vez la imagen `postgres:17-alpine` está en local, los siguientes
+Una vez la imagen `postgres:17.11-alpine` está en local, los siguientes
 arranques ya no necesitan descargar y pueden hacerse por SSH.
 
 ### El puerto 5432 ya está en uso: hay un PostgreSQL 18 nativo en el PC
@@ -196,12 +208,18 @@ docker compose logs postgres
    `POSTGRES_DB=dosisalerta`, `POSTGRES_USER=dosisalerta`,
    generar `POSTGRES_PASSWORD`, `JWT_SECRET` y
    `TELEGRAM_LINK_SECRET` distintos, `POSTGRES_HOST=localhost`,
-   `POSTGRES_PORT=5432`, `JWT_ALGORITHM=HS256`,
+   `JWT_ALGORITHM=HS256`,
    `JWT_ACCESS_EXPIRATION_MINUTES=60`,
    `JWT_REFRESH_EXPIRATION_DAYS=7`,
-   `TELEGRAM_BOT_USERNAME=dosisalerta_bot`,
-   `VITE_API_URL=http://localhost:8000/api/v1`.
+   `TELEGRAM_BOT_USERNAME=DosisAlertaBot`.
    Dejar `TELEGRAM_BOT_TOKEN` vacío hasta tener el token de BotFather.
+   **No** poner `VITE_API_URL` en el `.env` raíz: esa variable va
+   solo en `frontend/.env` (copiar `frontend/.env.example` a
+   `frontend/.env`). `POSTGRES_PORT` no es siempre 5432: primero
+   hay que comprobar los puertos del PC (ver
+   `docs/GUIA_INSTALACION_WINDOWS.md`, paso 8) y poner el primer
+   puerto libre. `JWT_*` y `TELEGRAM_*` son variables reservadas
+   (Fases 3 y 6, sin iniciar): el backend no las lee todavía.
 4. Verificar que `.env` está en `.gitignore` y no se sube a Git.
 5. Validar con `docker compose config --quiet`.
 6. Iniciar solo PostgreSQL con `docker compose up -d postgres`
