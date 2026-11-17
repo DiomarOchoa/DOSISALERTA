@@ -1,16 +1,20 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-11 — Fase 2 COMPLETADA
-(autorizada el 2026-11-11, sin commit ni push todavía, por
-autorización).** Commits en la rama `main`, publicados el
-2026-11-04: `2bc7ec8` (implementación, 51 archivos),
-`77d0d5c` (auditoría, 7 archivos) y `819c44b` (validación de
-puertos, 7 archivos). HEAD sigue en `819c44b`.
+Última actualización: **2026-11-17 — Saneamiento documental
+(sin commit ni push todavía). Fases 1 y 2 COMPLETADAS Y
+PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
+(implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
+(auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
+(validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
+(documentación de cuidadores, auditoría y IA, 7 archivos,
+2026-11-11) y `5f75de0` (Fase 2, 20 archivos, 2026-11-11).
+HEAD: `5f75de0c1a50c43f366d70c0a60ba138b581359d`.
 
 ## Fase actual
 
 **FASE 2: Modelos de datos y migraciones — COMPLETADA el
-2026-11-11 (sin commit ni push, por autorización).**
+2026-11-11 y PUBLICADA el mismo día en los commits `e8d4f0e`
+y `5f75de0`.**
 
 La Fase 1 quedó cerrada también en base de datos: PostgreSQL 17.11
 verificado funcionando en el contenedor `dosisalerta-postgres`
@@ -24,6 +28,22 @@ aplicada en PostgreSQL local, 31 pruebas de modelos contra
 PostgreSQL real en verde (suite completa: 43 pasadas) y
 `alembic revision --autogenerate` sin diferencias entre modelos y
 esquema. La Fase 3 no se inicia hasta que se autorice por separado.
+
+## Estado del bot de Telegram (sin publicar, 2026-11-17)
+
+El esqueleto de demostración del bot existe completo solo en el
+árbol de trabajo local, sin commit ni push: `backend/app/bot/`
+(`main.py`, `config.py`, handlers, keyboards, servicios con datos
+ficticios), `backend/app/tests/test_bot_structure.py` y
+`docs/bot/ESTRUCTURA_BOT.md`. Sus cuatro correcciones de la
+auditoría del 2026-11-11 están aplicadas: búsqueda del `.env`
+desde el archivo del paquete en `config.py` con su prueba de
+regresión, `script_location = %(here)s/alembic` en
+`backend/alembic.ini`, y `docs/bot/ESTRUCTURA_BOT.md` actualizada.
+Además, sin commit: `backend/app/bot/__init__.py` reescrito como
+demostración y `python-telegram-bot==22.8` añadido a
+`backend/pyproject.toml`. No es la integración completa de la
+Fase 6: no toca PostgreSQL, ni JWT, ni servicios reales.
 
 ## Objetivos completados (Fase 0)
 
@@ -66,8 +86,10 @@ esquema. La Fase 3 no se inicia hasta que se autorice por separado.
       errores y `npm run dev` respondiendo HTTP 200 en 5173.
 - [x] Docker Compose revisado: puerto del host configurable con
       `POSTGRES_PORT`, volumen `postgres-data`, imagen
-      `postgres:17-alpine`, sintaxis YAML validada. **No ejecutado**
-      (sin Docker en el entorno de la Fase 1): ver pendientes.
+      `postgres:17-alpine`, sintaxis YAML validada. No ejecutado
+      en el entorno de la Fase 1 (sin Docker allí); verificado
+      después, el 2026-11-11, en el PC del equipo (ver problema 4
+      de "Problemas pendientes", resuelto).
 - [x] Documentación actualizada: `README.md`, `backend/README.md`,
       `frontend/README.md` y `docker/README.md`, con comandos para
       Windows PowerShell y para Linux/macOS, versiones verificadas
@@ -204,15 +226,15 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
    correcciones de esta auditoría se preparan aquí y se deben
    trasladar al PC para su commit y push, nunca con `git reset
    --hard`, `git clean` destructivo ni force push.
-3. **Revisión de la carpeta en el PC (interrumpida, pendiente de
-   comprobar por el equipo):** el 2026-11-04 se intentó revisar
+3. **Revisión de la carpeta en el PC — RESUELTO:** el 2026-11-04
+   se intentó revisar
    `C:\Users\ASUS\Desktop\PROYECTO_ED2\DOSISALERTA` por Tailscale +
-   SSH. El túnel conecta, pero el PC no devolvió respuesta (sin
-   aprobación pendiente en el sistema). Antes de reintentar, el
-   equipo debe comprobar en el PC: que esté encendido y despierto,
-   que Tailscale diga Connected y que OpenSSH Server esté corriendo.
-   El script de conexión quedó guardado de forma persistente en
-   `workspace/ssh_tailscale.sh` para no perderlo en reinicios.
+   SSH y el PC no devolvió respuesta. La conexión se recuperó
+   después y el repo se verificó por SSH el 2026-11-11 y de
+   nuevo el 2026-11-17: rama `main`, HEAD `5f75de0`, en sync con
+   `origin/main`. El script de conexión quedó guardado de forma
+   persistente en `workspace/ssh_tailscale.sh` para no perderlo
+   en reinicios.
 4. **Docker Compose sin ejecutar — RESUELTO el 2026-11-11:**
    PostgreSQL 17.11 verificado funcionando en el contenedor
    `dosisalerta-postgres` del PC (Up, healthy, `pg_isready`
@@ -236,10 +258,12 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
    suelto. El frontend ya estaba fijado por
    `frontend/package-lock.json` (usar `npm ci` para una instalación
    exactamente igual a la bloqueada).
-6. **Token de Telegram:** no existe todavía en este proyecto. Se crea
-   con @BotFather en la Fase 6. No debe pedirse ni guardarse antes.
-7. **Calendario ajustado:** quedan 21 días hasta el 25 de noviembre de
-   2026 a las 12:00 m. El roadmap propone fechas por fase con el 24
+6. **Token de Telegram:** el bot `@DosisAlertaBot` ya existe (creado con
+   @BotFather), pero su token real no está configurado en el proyecto.
+   No debe solicitarse, compartirse ni guardarse antes de la Fase 6.
+7. **Calendario ajustado:** quedan 8 días hasta el 25 de noviembre de
+   2026 a las 12:00 m (actualizado el 2026-11-17; eran 21 días el
+   2026-11-04). El roadmap propone fechas por fase con el 24
    para ensayo; cualquier retraso se recorta de pulido de la web,
    nunca de persistencia, seguridad o pruebas del motor.
 8. **Zona horaria por defecto:** se propone `America/Bogota` como valor
@@ -279,20 +303,24 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
   en el commit. La frase anterior, que los dejaba pendientes de
   traslado, quedó corregida por este hecho.
 
-## Correcciones finales de la Fase 1 (2026-11-04, pendientes de tercer commit)
+## Correcciones finales de la Fase 1 (2026-11-04, publicadas como tercer commit `819c44b`)
 
-Autorizadas por el equipo tras la revisión final, y preparadas
-aquí, sin commit ni push todavía:
+Autorizadas por el equipo tras la revisión final, y publicadas
+como tercer commit `819c44b` ("fix: validate port configuration
+and consolidate Phase 1 documentation", 7 archivos, 228
+inserciones, 35 eliminaciones, push `77d0d5c..819c44b` en
+`main`):
 
 - **Documentación:** `README.md`, `ESTADO_PROYECTO.md`,
   `backend/README.md`, `frontend/README.md` y
-  `docs/architecture/ROADMAP.md` registran ahora los dos commits
-  (`2bc7ec8` y `77d0d5c`), el total de 2 commits, las fechas
-  reales (Fase 1 realizada el 2026-11-04, un día antes de lo
-  propuesto del 5 al 7 de noviembre) y la distinción entre
-  tecnologías instaladas en la Fase 1 y previstas para fases
-  posteriores. PostgreSQL sigue sin afirmarse como funcionando:
-  sigue pendiente de verificar con Docker.
+  `docs/architecture/ROADMAP.md` registraron entonces los dos
+  commits existentes (`2bc7ec8` y `77d0d5c`), el total de 2
+  commits en ese momento, las fechas reales (Fase 1 realizada el
+  2026-11-04, un día antes de lo propuesto del 5 al 7 de
+  noviembre) y la distinción entre tecnologías instaladas en la
+  Fase 1 y previstas para fases posteriores. Después llegaron
+  los commits `e8d4f0e` y `5f75de0` de la Fase 2 (ver "Fase
+  actual").
 - **Backend:** `backend/app/core/config.py` valida ahora
   explícitamente `PORT` y `POSTGRES_PORT`: entero entre 1 y
   65535, vacío o ausente usa el defecto, inválido falla al
@@ -306,7 +334,9 @@ aquí, sin commit ni push todavía:
 - **Verificación de estas correcciones:** ver el informe de
   entrega de esta corrección (pytest completo, uvicorn,
   `/health`, `/api/v1/health`, build y dev del frontend).
-  PostgreSQL sigue pendiente, solo en el PC con Docker.
+  PostgreSQL se verificó después, el 2026-11-11 (ver problema 4
+  de "Problemas pendientes", resuelto); Docker Desktop estaba
+  apagado el 2026-11-17, sin verificación en vivo ese día.
 
 ## Próxima fase (SOLO cuando se autorice)
 

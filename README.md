@@ -1,20 +1,26 @@
 # DOSISALERTA
 
-> **Estado: Fase 1 — Aprobada y publicada en GitHub.**
+> **Estado: Fases 1 y 2 — Aprobadas y publicadas en GitHub.**
 > Ya existe backend FastAPI con `GET /health` y frontend React con
-> pantalla inicial. Todavía no hay modelos, autenticación,
-> medicamentos ni recordatorios. Commits en la rama `main`,
-> publicados el 2026-11-04 en
-> https://github.com/DiomarOchoa/DOSISALERTA:
-> `2bc7ec8` (implementación de la Fase 1, 51 archivos) y `77d0d5c`
-> (auditoría y fijación de dependencias, 7 archivos). Las
-> correcciones finales de la Fase 1 (ver `ESTADO_PROYECTO.md`)
-> están preparadas y pendientes de un tercer commit, todavía sin
-> hacer.
+> pantalla inicial, y ya existen los modelos SQLAlchemy de las 13
+> tablas con su migración inicial Alembic aplicada. Todavía no hay
+> autenticación, medicamentos ni recordatorios. Commits en la rama
+> `main`, en https://github.com/DiomarOchoa/DOSISALERTA:
+> `2bc7ec8` (Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
+> (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
+> (correcciones finales Fase 1, 7 archivos, 2026-11-04),
+> `e8d4f0e` (documentación de cuidadores, auditoría y IA, 7
+> archivos, 2026-11-11) y `5f75de0` (Fase 2, 20 archivos,
+> 2026-11-11). HEAD: `5f75de0`.
 > Distinción honesta: implementación y revisión están hechas y
 > aprobadas; las pruebas de backend y frontend se ejecutaron de
-> verdad (ver abajo); PostgreSQL todavía no se ha ejecutado, porque
-> falta verificar Docker (ver pendientes).
+> verdad (ver abajo); PostgreSQL 17.11 se verificó funcionando
+> el 2026-11-11 en el contenedor `dosisalerta-postgres`
+> (`pg_isready` con "accepting connections", ver
+> `docs/ENTORNO_LOCAL.md`). El esqueleto de demostración del bot
+> de Telegram existe solo localmente, sin publicar, y su
+> integración completa sigue siendo de la Fase 6. La Fase 3 no
+> está iniciada ni autorizada.
 
 ## El problema
 
@@ -60,10 +66,12 @@ datos para la web y otra para Telegram.
 ## Características (previstas, por fases)
 
 - [x] Fase 1: entorno, backend FastAPI con `/health` y frontend React
-      inicial (aprobada y publicada, commits `2bc7ec8` y `77d0d5c`;
-      PostgreSQL sin ejecutar todavía, pendiente de verificar con
-      Docker).
-- [ ] Fase 2: modelos y base de datos PostgreSQL.
+      inicial (aprobada y publicada, commits `2bc7ec8`, `77d0d5c` y
+      `819c44b`; PostgreSQL 17.11 verificado el 2026-11-11, ver
+      `docs/ENTORNO_LOCAL.md`).
+- [x] Fase 2: modelos y base de datos PostgreSQL (aprobada y
+      publicada, commits `e8d4f0e` y `5f75de0`; migración inicial
+      `f2a17166bccd`, 13 tablas, 31 pruebas de modelos en verde).
 - [ ] Fase 3: autenticación JWT y seguridad por usuario.
 - [ ] Fase 4: medicamentos, tratamientos, dosis y horarios.
 - [ ] Fase 5: motor de recordatorios con cola de prioridad y
@@ -79,16 +87,16 @@ datos para la web y otra para Telegram.
 |---|---|---|
 | Lenguaje backend | Python | 3.12 o superior (único backend) |
 | API | FastAPI + Uvicorn | Documentación OpenAPI/Swagger automática |
-| ORM y migraciones | SQLAlchemy 2.0 (async) + Alembic | Previsto para la Fase 2, no instalado en la Fase 1. Driver `asyncpg` previsto. |
+| ORM y migraciones | SQLAlchemy 2.0 (async) + Alembic | Instalado en la Fase 2: SQLAlchemy 2.1.8, Alembic 1.20.1, asyncpg 0.32.0. |
 | Validación | Pydantic v2 | Instalado en la Fase 1 (2.14.2). Esquemas de entrada y salida. |
 | Configuración | python-dotenv | Instalado en la Fase 1 (1.2.4). Secretos solo en `.env`, nunca en el repo. |
-| Base de datos | PostgreSQL | 17-alpine en Docker (desarrollo). Configurado, pero sin ejecutar todavía. |
-| Bot | python-telegram-bot | Previsto para la Fase 6, no instalado en la Fase 1. Polling en desarrollo (ver decisiones). |
-| Autenticación | JWT (PyJWT) + bcrypt | Previsto para la Fase 3, no instalado en la Fase 1. Access 60 min, refresh 7 días. |
-| Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). Unitarias y de API. pytest-asyncio previsto cuando haya tests async. |
+| Base de datos | PostgreSQL | 17-alpine en Docker (desarrollo). Verificado 17.11 el 2026-11-11; el contenedor publica en el puerto del host 5433 (el 5432 lo ocupa un PostgreSQL 18 nativo). |
+| Bot | python-telegram-bot | Esqueleto de demostración local, sin publicar (python-telegram-bot 22.8 en el árbol de trabajo, sin commit). Integración completa en la Fase 6. Polling en desarrollo (ver decisiones). |
+| Autenticación | JWT (PyJWT) + bcrypt | Previsto para la Fase 3, no instalado. Access 60 min, refresh 7 días. |
+| Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). En la Fase 2 se añadió pytest-asyncio 1.4.1.post1 para las 31 pruebas de modelos contra PostgreSQL real. |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
-| Entorno | Docker y Docker Compose | Solo PostgreSQL (sin ejecutar todavía; pendiente de verificar) |
-| Control de versiones | Git y GitHub | Repositorio público, rama `main`, commits `2bc7ec8` y `77d0d5c` (2026-11-04) |
+| Entorno | Docker y Docker Compose | Solo PostgreSQL, verificado el 2026-11-11 (ver `docs/ENTORNO_LOCAL.md`) |
+| Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `5f75de0`; commits `2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e` y `5f75de0` |
 
 Versiones verificadas en la Fase 1: FastAPI 0.162.0, Uvicorn
 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React 19.3.1, Vite 6.4.5,
@@ -141,13 +149,16 @@ DosisAlerta/
 - Una cuenta de Telegram y un bot creado con @BotFather (solo se
   necesita el token en la Fase 6; no se necesita para la Fase 1).
 
-## Instalación y ejecución — Fase 1 (verificada, salvo Docker)
+## Instalación y ejecución — Fases 1 y 2 (verificadas)
 
 > Backend y frontend se probaron de verdad en la Fase 1 (ver
-> `ESTADO_PROYECTO.md`). PostgreSQL **no** se ejecutó porque en el
-> entorno de desarrollo de la Fase 1 no hay Docker: esa comprobación
-> queda pendiente en un PC con Docker. No ejecutar `alembic`
-> todavía: no hay migraciones hasta la Fase 2.
+> `ESTADO_PROYECTO.md`). PostgreSQL se verificó el 2026-11-11 en
+> el PC del equipo (17.11, `pg_isready` con "accepting
+> connections", ver `docs/ENTORNO_LOCAL.md`); Docker Desktop
+> estaba apagado el 2026-11-17, sin verificación en vivo ese día.
+> Las migraciones existen desde la Fase 2 (`alembic upgrade head`
+> crea las 13 tablas); nunca usar `create_all` como mecanismo de
+> evolución del esquema.
 
 ### Windows PowerShell
 
@@ -156,7 +167,7 @@ DosisAlerta/
 Copy-Item .env.example .env
 # Editar .env: contraseña de PostgreSQL
 
-# 2. Base de datos local (requiere Docker; pendiente de verificar)
+# 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U dosisalerta -d dosisalerta
 
@@ -184,7 +195,7 @@ npm run dev
 cp .env.example .env
 # Editar .env: contraseña de PostgreSQL
 
-# 2. Base de datos local (requiere Docker; pendiente de verificar)
+# 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
 docker compose up -d postgres
 docker compose exec postgres pg_isready -U dosisalerta -d dosisalerta
 
@@ -206,8 +217,10 @@ npm run dev
 ```
 
 El bot de Telegram (Fase 6, segundo proceso, mismo código y BD) se
-ejecuta con `python -m app.bot.main` **solo a partir de la Fase 6**;
-en la Fase 1 ese módulo no existe todavía y no debe ejecutarse.
+ejecuta con `python -m app.bot.main` **solo a partir de la Fase 6**.
+Existe un esqueleto de demostración con datos ficticios, solo
+local y sin publicar, que no debe ejecutarse como integración
+real: no toca PostgreSQL, ni JWT, ni servicios reales.
 
 ## Integración con Telegram
 
@@ -234,11 +247,11 @@ futura solo si hay despliegue con dominio y TLS; ver
 > **Pendiente de completar.**
 > No se inventan nombres: esta tabla la debe completar el equipo y
 > cada integrante debe poder explicar el módulo que firma. El
-> repositorio ya está publicado y tiene 2 commits totales
-> (`2bc7ec8`, Fase 1, y `77d0d5c`, auditoría); el reparto de
-> commits por integrante queda pendiente hasta que se completen
-> los nombres, así que no se asigna ningún commit a nadie en
-> esta tabla todavía.
+> repositorio ya está publicado y tiene 5 commits totales
+> (`2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e` y `5f75de0`); el
+> reparto de commits por integrante queda pendiente hasta que se
+> completen los nombres, así que no se asigna ningún commit a
+> nadie en esta tabla todavía.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|
@@ -264,10 +277,17 @@ con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,
   (`/health`, CORS, configuración), la prueba Pytest, el frontend
   React inicial y esta documentación, ejecutando de verdad las
   pruebas y los servidores en el entorno de desarrollo, y dejando
-  constancia de lo que no se pudo ejecutar (PostgreSQL sin Docker).
+  constancia de lo que en ese momento no se pudo ejecutar
+  (PostgreSQL sin Docker en ese entorno; verificado después, el
+  2026-11-11, en el PC del equipo).
   Todo el código de la Fase 1 está en el repositorio para leerlo y
-  defenderlo; lo que no existe todavía (modelos, autenticación,
-  recordatorios, bot) no se finge en ningún archivo.
+  defenderlo; lo que no existe todavía (autenticación,
+  recordatorios, bot completo) no se finge en ningún archivo.
+- **Qué hizo la IA en la Fase 2:** escribir los modelos SQLAlchemy
+  de las 13 tablas y la migración inicial Alembic `f2a17166bccd`,
+  ejecutando de verdad las 31 pruebas de modelos contra
+  PostgreSQL 17.11 real (suite completa: 43 pasadas) y
+  `alembic revision --autogenerate` sin diferencias.
 - **Qué NO hace la IA por el equipo:** no sustituye la comprensión del
   código. En la sustentación presencial de 10 minutos, cada integrante
   debe poder explicar su módulo: qué hace, por qué se diseñó así y

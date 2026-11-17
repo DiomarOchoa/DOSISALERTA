@@ -40,8 +40,8 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
 | Fase | Fechas propuestas | Entregable que se puede mostrar |
 |---|---|---|
 | 0. Fundación | 4 nov | Esta documentación |
-| 1. Entorno y backend | Realizada 4 nov (propuesta 5–7 nov) | API `/health` + 1 test en verde (BD pendiente de verificar) |
-| 2. Modelos y BD | 8–10 nov | Migraciones Alembic aplicadas |
+| 1. Entorno y backend | Realizada 4 nov (propuesta 5–7 nov) | API `/health` + 1 test en verde (BD verificada el 2026-11-11) |
+| 2. Modelos y BD | Realizada 11 nov (propuesta 8–10 nov) | Migraciones Alembic aplicadas (`f2a17166bccd`, 13 tablas) |
 | 3. Autenticación | 11–12 nov | Registro, login JWT y ruta protegida |
 | 4. Medicamentos y tratamientos | 13–15 nov | CRUD con horarios y recordatorios generados |
 | 5. Motor de recordatorios | 16–18 nov | Envío real con efecto único y sin fallos silenciosos tras reinicio |
@@ -77,20 +77,23 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   el primer push se hizo en realidad tras aprobar la Fase 1, no la
   Fase 0: commit `2bc7ec8` en `main`, 51 archivos, 2026-11-04.
   Segundo commit `77d0d5c` (auditoría, 7 archivos, 2026-11-04).
+  Tercer commit `819c44b` (correcciones finales, 7 archivos,
+  2026-11-04).
   Fase 1 realizada en realidad el 2026-11-04, un día antes de lo
-  propuesto. Queda pendiente de esa tarea original: `docker compose
-  up -d postgres` ejecutado y registrado, y `pg_isready`
-  verificado. Ese pendiente debe cerrarse antes del trabajo de
-  base de datos de la Fase 2.
+  propuesto. El pendiente original de Docker se cerró el
+  2026-11-11: `docker compose up -d postgres` ejecutado y
+  registrado, y `pg_isready` verificado (PostgreSQL 17.11, ver
+  `docs/ENTORNO_LOCAL.md`); el contenedor publica en el puerto
+  del host 5433 por el PostgreSQL 18 nativo en el 5432.
 - Archivos: `backend/pyproject.toml`, `backend/app/main.py`,
   `backend/app/core/`, `backend/app/config/`, `frontend/package.json`.
 - Pruebas: `pytest` en verde; `/health` responde 200; la BD responde
-  a `pg_isready` (esta última, todavía pendiente, ver arriba).
+  a `pg_isready` (verificada el 2026-11-11).
 - Aceptación: cualquier integrante puede clonar, instalar y levantar
   API + BD siguiendo el README, sin pasos no documentados.
-  Aceptación parcialmente pendiente: API y tests cumplidos; BD
-  pendiente de verificar, así que no se afirma que PostgreSQL
-  funcione hasta que `pg_isready` se ejecute de verdad.
+  Aceptación cumplida: API y tests cumplidos; BD verificada el
+  2026-11-11 (PostgreSQL 17.11, `pg_isready` con "accepting
+  connections").
 - Commits: `build: initialize python project`,
   `feat: initialize fastapi backend`, `test: add health check test`,
   `docs: document setup instructions`.
@@ -123,13 +126,15 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   no entra en esta aceptación: se migra en la Fase 6.)
 - Commits: `feat: implement database models`,
   `feat: add initial alembic migration`, `test: add model constraint tests`.
-- Estado (2026-11-11): COMPLETADA, sin commit todavía (la
-  autorización de la Fase 2 no incluye commits ni push). Migración
-  inicial `f2a17166bccd` aplicada en PostgreSQL local (13 tablas);
-  31 pruebas de modelos contra PostgreSQL real en verde;
-  `alembic revision --autogenerate` sin diferencias. Puerto de
-  PostgreSQL cambiado a 5433 en `.env` por conflicto con un
-  PostgreSQL 18 nativo en el 5432 (ver `docs/ENTORNO_LOCAL.md`).
+- Estado (2026-11-11): COMPLETADA y PUBLICADA el mismo día en
+  los commits `e8d4f0e` (documentación, 7 archivos) y `5f75de0`
+  (modelos y migración, 20 archivos). HEAD: `5f75de0`.
+  Migración inicial `f2a17166bccd` aplicada en PostgreSQL local
+  (13 tablas); 31 pruebas de modelos contra PostgreSQL real en
+  verde; `alembic revision --autogenerate` sin diferencias.
+  Puerto de PostgreSQL cambiado a 5433 en `.env` por conflicto
+  con un PostgreSQL 18 nativo en el 5432 (ver
+  `docs/ENTORNO_LOCAL.md`).
 
 ### FASE 3 — Autenticación y seguridad
 
