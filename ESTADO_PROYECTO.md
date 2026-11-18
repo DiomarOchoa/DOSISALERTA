@@ -1,8 +1,8 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-18 — Fase 3 COMPLETADA en
-implementación y pruebas (sin commit ni push todavía). Fases 1 y 2
-COMPLETADAS Y PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
+Última actualización: **2026-11-18 — Fase 3 COMPLETADA, con commit
+`017538a` publicado y fusionado en `main`. Fases 1 y 2 COMPLETADAS
+Y PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
 (implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
 (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
@@ -12,10 +12,9 @@ HEAD: `5f75de0c1a50c43f366d70c0a60ba138b581359d`.
 
 ## Fase actual
 
-**FASE 3: Autenticación y seguridad — COMPLETADA en
-implementación y pruebas el 2026-11-18, en la rama
-`feature/fase-3-jwt`, SIN commit ni push todavía (el commit
-requiere autorización expresa aparte; su hash queda pendiente).**
+**FASE 3: Autenticación y seguridad — COMPLETADA el 2026-11-18, con
+commit `017538a1924767b33cffb3fbdc625eab18e4c76a` publicado en
+`origin/feature/fase-3-jwt` y fusionado en `main` el 2026-11-18.**
 
 La Fase 3 se autorizó expresamente el 2026-11-18 (con las tres
 decisiones confirmadas: access token válido hasta 60 minutos
@@ -27,11 +26,10 @@ SHA-256) con rotación atómica (`UPDATE ... RETURNING`), logout,
 dependencia `current_user` con `HTTPBearer`, y migración
 `6ea5249ec805` (UNIQUE `uq_refresh_tokens_token_hash`,
 `down_revision = f2a17166bccd`). 49 pruebas nuevas (12 unitarias
-+ 37 de integración) en verde; suite completa: 91 pasadas y 1
-fallo en un test existente de la Fase 2
-(`test_alembic_version_is_head`), que fija la revisión anterior
-`f2a17166bccd` y espera la nueva cabeza `6ea5249ec805`
-(actualización de una línea, pendiente). `alembic autogenerate`
++ 37 de integración) en verde; suite completa: 92 pasadas, 0 fallos,
+tras la corrección robusta del test `test_alembic_version_is_head`
+(compara la revisión aplicada con el head de Alembic, sin hash
+literal). `alembic autogenerate`
 vacío. Limitación documentada (§7.5 del plan): el access token
 sigue válido hasta su expiración tras el logout.
 
@@ -228,9 +226,11 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 
 ## Problemas pendientes (no ocultar, resolver antes o en la Fase 1)
 
-1. **Nombres de los integrantes:** pendientes. El README los deja
-   como "por completar" a propósito; no se inventan. Sin esto no se
-   puede repartir los 5 commits por integrante.
+1. **Nombres de los integrantes:** RESUELTO el 2026-11-18. El equipo
+   son Diomar Ochoa (líder), Jaider Toro Camacho, Roderic y Maisha.
+   Quedan por confirmar: apellidos de Roderic y Maisha, cuentas de
+   GitHub, disponibilidad y experiencia (ver plan de continuación
+   §5.3). Reparto de commits en `PLAN_CONTINUACION_FASES_4_9.md` §5.
 2. **Repositorio público — RESUELTO:** creado el 2026-11-04 en
    https://github.com/DiomarOchoa/DOSISALERTA y publicado ese mismo
    día desde el PC del equipo: `git init -b main`, remoto `origin`
@@ -280,9 +280,9 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 6. **Token de Telegram:** el bot `@DosisAlertaBot` ya existe (creado con
    @BotFather), pero su token real no está configurado en el proyecto.
    No debe solicitarse, compartirse ni guardarse antes de la Fase 6.
-7. **Calendario ajustado:** quedan 8 días hasta el 25 de noviembre de
-   2026 a las 12:00 m (actualizado el 2026-11-17; eran 21 días el
-   2026-11-04). El roadmap propone fechas por fase con el 24
+7. **Calendario ajustado:** quedan 7 días hasta el 25 de noviembre de
+   2026 a las 12:00 m (actualizado el 2026-11-18; eran 8 días el
+   2026-11-17). El roadmap propone fechas por fase con el 24
    para ensayo; cualquier retraso se recorta de pulido de la web,
    nunca de persistencia, seguridad o pruebas del motor.
 8. **Zona horaria por defecto:** se propone `America/Bogota` como valor

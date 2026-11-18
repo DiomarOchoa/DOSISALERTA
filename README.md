@@ -1,8 +1,8 @@
 # DOSISALERTA
 
-> **Estado: Fases 1 y 2 — Aprobadas y publicadas en GitHub. Fase 3 —
-> Implementada y probada en la rama `feature/fase-3-jwt` (2026-11-18),
-> sin commit ni push todavía.**
+> **Estado: Fases 1, 2 y 3 — Aprobadas y publicadas en GitHub. Fase 3 —
+> Implementada, probada y publicada (commit `017538a`, 2026-11-18),
+> fusionada en `main`.**
 > Ya existe backend FastAPI con `GET /health` y frontend React con
 > pantalla inicial, y ya existen los modelos SQLAlchemy de las 13
 > tablas con su migración inicial Alembic aplicada. La Fase 3 añade
@@ -15,7 +15,7 @@
 > (correcciones finales Fase 1, 7 archivos, 2026-11-04),
 > `e8d4f0e` (documentación de cuidadores, auditoría y IA, 7
 > archivos, 2026-11-11) y `5f75de0` (Fase 2, 20 archivos,
-> 2026-11-11). HEAD: `5f75de0`.
+> 2026-11-11) y `017538a` (Fase 3, 27 archivos, 2026-11-18). HEAD: `017538a`.
 > Distinción honesta: implementación y revisión están hechas y
 > aprobadas; las pruebas de backend y frontend se ejecutaron de
 > verdad (ver abajo); PostgreSQL 17.11 se verificó funcionando
@@ -25,11 +25,11 @@
 > de Telegram existe solo localmente, sin publicar, y su
 > integración completa sigue siendo de la Fase 6. La Fase 3 está
 > implementada y probada (2026-11-18) en la rama
-> `feature/fase-3-jwt`, pendiente de commit y de autorización para
-> publicar; la suite da 91 pasadas y 1 fallo en un test existente
-> de la Fase 2 (`test_alembic_version_is_head`), que fija la
-> revisión anterior `f2a17166bccd` y espera la nueva cabeza
-> `6ea5249ec805` (actualización de una línea, pendiente).
+> `feature/fase-3-jwt`, con commit
+> `017538a1924767b33cffb3fbdc625eab18e4c76a` publicado el 2026-11-18 y
+> fusionado en `main`; la suite da 92 pasadas, 0 fallos, tras la
+> corrección robusta del test `test_alembic_version_is_head` (ya no usa
+> hash literal: compara la revisión aplicada con el head de Alembic).
 
 ## El problema
 
@@ -82,11 +82,11 @@ datos para la web y otra para Telegram.
       publicada, commits `e8d4f0e` y `5f75de0`; migración inicial
       `f2a17166bccd`, 13 tablas, 31 pruebas de modelos en verde).
 - [x] Fase 3: autenticación JWT y seguridad por usuario
-      (implementada y probada el 2026-11-18 en la rama
-      `feature/fase-3-jwt`, sin commit ni push todavía; registro,
-      login, refresh con rotación atómica, logout y `/me`;
-      migración `6ea5249ec805` con UNIQUE en
-      `refresh_tokens.token_hash`; 49 pruebas nuevas en verde).
+      (implementada, probada y publicada el 2026-11-18, commit
+      `017538a`, fusionada en `main`; registro, login, refresh con
+      rotación atómica, logout y `/me`; migración `6ea5249ec805` con
+      UNIQUE en `refresh_tokens.token_hash`; 49 pruebas nuevas en
+      verde; suite 92/92).
 - [ ] Fase 4: medicamentos, tratamientos, dosis y horarios.
 - [ ] Fase 5: motor de recordatorios con cola de prioridad y
       prevención de duplicados.
@@ -110,7 +110,7 @@ datos para la web y otra para Telegram.
 | Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). En la Fase 2 se añadió pytest-asyncio 1.4.1.post1 para las 31 pruebas de modelos contra PostgreSQL real. |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
 | Entorno | Docker y Docker Compose | Solo PostgreSQL, verificado el 2026-11-11 (ver `docs/ENTORNO_LOCAL.md`) |
-| Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `5f75de0`; commits `2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e` y `5f75de0` |
+| Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `017538a`; commits `2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e`, `5f75de0` y `017538a` |
 
 Versiones canónicas (Fase A): Python 3.13.4, Node.js 24.12.0,
 npm 11.6.2, PostgreSQL 17.11. Dependencias verificadas: FastAPI
@@ -118,8 +118,7 @@ npm 11.6.2, PostgreSQL 17.11. Dependencias verificadas: FastAPI
 19.3.1, Vite 6.4.5, TypeScript 5.9.3. En el PC del equipo,
 `pytest` dio 43 passed (12 de la Fase 1 y 31 de la Fase 2) antes
 de la Fase 3; tras la Fase 3, en el PC de Jaider, la suite da
-91 passed y 1 fallo en un test existente de la Fase 2 que fija
-la revisión anterior (ver el estado, arriba). `uvicorn` arrancó
+92 passed, 0 failed (ver el estado, arriba). `uvicorn` arrancó
 en 8000, `/health` respondió
 `{"status":"ok","app":"DosisAlerta","version":"0.1.0"}` y el
 frontend en 5173 mostró "Backend en línea (versión 0.1.0)".
@@ -309,20 +308,18 @@ futura solo si hay despliegue con dominio y TLS; ver
 
 ## Integrantes
 
-> **Pendiente de completar.**
-> No se inventan nombres: esta tabla la debe completar el equipo y
-> cada integrante debe poder explicar el módulo que firma. El
-> repositorio ya está publicado y tiene 5 commits totales
-> (`2bc7ec8`, `77d0d5c`, `819c44b`, `e8d4f0e` y `5f75de0`); el
-> reparto de commits por integrante queda pendiente hasta que se
-> completen los nombres, así que no se asigna ningún commit a
-> nadie en esta tabla todavía.
+> **Completada el 2026-11-18.** El equipo son Diomar Ochoa (líder),
+> Jaider Toro Camacho, Roderic y Maisha. El repositorio tiene 13
+> commits totales (12 en `main` + 1 en `feature/fase-3-jwt`, ya
+> fusionado): DiomarOchoa 12, Jaider Toro Camacho 1, Roderic 0,
+> Maisha 0. Cada integrante debe poder explicar el módulo que firma.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|
-| Por completar | Por asignar | Pendiente de reparto |
-| Por completar | Por asignar | Pendiente de reparto |
-| Por completar | Por asignar | Pendiente de reparto |
+| Diomar Ochoa | Líder: coordinación, revisión, fusión, docs, Fase 9 | 12 |
+| Jaider Toro Camacho | Fase 4 (API) + Fase 5 (motor) | 1 |
+| Roderic (apellido por confirmar) | Fase 7 (historial/estadísticas) + Fase 8 (web) | 0 |
+| Maisha (apellido por confirmar) | Fase 6 (bot mínimo) + Fase 8 (web) | 0 |
 
 Requisito académico: **mínimo 5 commits descriptivos por integrante**,
 con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,
@@ -359,9 +356,8 @@ con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,
   migración UNIQUE en `refresh_tokens.token_hash` y las 49
   pruebas nuevas (12 unitarias + 37 de integración), ejecutando
   de verdad la suite completa contra PostgreSQL 17.11 real
-  (91 pasadas; 1 fallo en un test existente de la Fase 2 que fija
-  la revisión anterior, pendiente de una actualización de una
-  línea). La limitación de que el access token sigue válido hasta
+  (92 pasadas, 0 fallos, tras la corrección robusta del test de
+  head). La limitación de que el access token sigue válido hasta
   60 minutos tras el logout está documentada, no oculta.
 - **Qué NO hace la IA por el equipo:** no sustituye la comprensión del
   código. En la sustentación presencial de 10 minutos, cada integrante

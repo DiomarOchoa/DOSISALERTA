@@ -155,18 +155,17 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   ninguna consulta olvida el filtro por `user_id`.
 - Commits: `feat: implement user registration`,
   `feat: implement jwt authentication`, `test: add auth security tests`.
-- Estado (2026-11-18): COMPLETADA en implementación y pruebas en
-  la rama `feature/fase-3-jwt`, SIN commit ni push todavía (el
-  commit requiere autorización expresa aparte; su hash queda
-  pendiente). Registro atómico, login JSON, JWT access (HS256,
+- Estado (2026-11-18): COMPLETADA, con commit
+  `017538a1924767b33cffb3fbdc625eab18e4c76a` publicado en
+  `origin/feature/fase-3-jwt` y fusionado en `main`.
+  Registro atómico, login JSON, JWT access (HS256,
   60 min) + refresh opaco (7 días, solo hash SHA-256) con
   rotación atómica, logout, `current_user` con `HTTPBearer`, y
   migración `6ea5249ec805` (UNIQUE `uq_refresh_tokens_token_hash`).
   49 pruebas nuevas (12 unitarias + 37 de integración) en verde;
-  suite: 91 pasadas y 1 fallo en un test existente de la Fase 2
-  (`test_alembic_version_is_head`), que fija la revisión anterior
-  `f2a17166bccd` y espera la nueva cabeza (actualización de una
-  línea, pendiente). Limitación documentada: el access token sigue
+  suite: 92 pasadas, 0 fallos, tras la corrección robusta del test de
+  head. Auditoría final APROBADA, 0 discrepancias. Limitación
+  documentada: el access token sigue
   válido hasta su expiración tras el logout (§7.5 del plan).
 
 ### FASE 4 — Gestión de medicamentos y tratamientos
