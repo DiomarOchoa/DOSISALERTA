@@ -309,15 +309,15 @@ futura solo si hay despliegue con dominio y TLS; ver
 ## Integrantes
 
 > **Completada el 2026-11-18.** El equipo son Diomar Ochoa (líder),
-> Jaider Toro Camacho, Roderic y Maisha. El repositorio tiene 13
-> commits totales (12 en `main` + 1 en `feature/fase-3-jwt`, ya
-> fusionado): DiomarOchoa 12, Jaider Toro Camacho 1, Roderic 0,
-> Maisha 0. Cada integrante debe poder explicar el módulo que firma.
+> Jaider Toro Camacho, Roderic y Maisha. El repositorio tiene 14
+> commits totales en `main`: DiomarOchoa 12, Jaider Toro Camacho 2,
+> Roderic 0, Maisha 0. Cada integrante debe poder explicar el módulo
+> que firma.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|
 | Diomar Ochoa | Líder: coordinación, revisión, fusión, docs, Fase 9 | 12 |
-| Jaider Toro Camacho | Fase 4 (API) + Fase 5 (motor) | 1 |
+| Jaider Toro Camacho | Fase 4 (API) + Fase 5 (motor) | 2 |
 | Roderic (apellido por confirmar) | Fase 7 (historial/estadísticas) + Fase 8 (web) | 0 |
 | Maisha (apellido por confirmar) | Fase 6 (bot mínimo) + Fase 8 (web) | 0 |
 

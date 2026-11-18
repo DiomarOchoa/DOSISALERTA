@@ -7,8 +7,8 @@ Y PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
 (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
 (documentación de cuidadores, auditoría y IA, 7 archivos,
-2026-11-11) y `5f75de0` (Fase 2, 20 archivos, 2026-11-11).
-HEAD: `5f75de0c1a50c43f366d70c0a60ba138b581359d`.
+2026-11-11), `017538a` (Fase 3, 27 archivos, 2026-11-18) y `770a6c8` (docs, 3 archivos, 2026-11-18).
+HEAD: `770a6c8abe141916062a3fb9831def1f5a662f40`.
 
 ## Fase actual
 

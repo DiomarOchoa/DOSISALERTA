@@ -27,7 +27,7 @@ pruebas (por ejemplo: autenticación, medicamentos/tratamientos,
 motor de recordatorios, bot, frontend/estadísticas). Un commit que
 toque el módulo de otro se hace con revisión de su dueño. El conteo
 se revisa en la Fase 9 antes de entregar; si alguien va por debajo de
-5, se le asignan tareas reales de su módulo, nunca commits vacíos.
+5, se le asignan tareas reales de su módulo, nunca commits vacíos. Los nombres ya están confirmados (Diomar Ochoa, Jaider Toro Camacho, Roderic, Maisha); el reparto vigente está en `PLAN_CONTINUACION_FASES_4_9.md` §5.
 
 **No se hacen commits automáticos ni por fuera del equipo.** La Fase 0
 termina deliberadamente sin commits: el equipo revisa primero.
@@ -43,10 +43,10 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
 | 1. Entorno y backend | Realizada 4 nov (propuesta 5–7 nov) | API `/health` + 1 test en verde (BD verificada el 2026-11-11) |
 | 2. Modelos y BD | Realizada 11 nov (propuesta 8–10 nov) | Migraciones Alembic aplicadas (`f2a17166bccd`, 13 tablas) |
 | 3. Autenticación | Realizada 18 nov (propuesta 11–12 nov) | Registro, login JWT y ruta protegida (migración `6ea5249ec805`, 49 pruebas nuevas) |
-| 4. Medicamentos y tratamientos | 13–15 nov | CRUD con horarios y recordatorios generados |
-| 5. Motor de recordatorios | 16–18 nov | Envío real con efecto único y sin fallos silenciosos tras reinicio |
-| 6. Bot de Telegram | 19–20 nov | Vincular, confirmar y posponer desde Telegram |
-| 7. Historial y estadísticas | 21 nov | Historial y % de cumplimiento |
+| 4. Medicamentos y tratamientos | 18–19 nov | CRUD con horarios y recordatorios generados |
+| 5. Motor de recordatorios | 20–21 nov | Envío real con efecto único y sin fallos silenciosos tras reinicio |
+| 6. Bot de Telegram | 21–22 nov | Vincular, confirmar y posponer desde Telegram |
+| 7. Historial y estadísticas | 20 nov | Historial y % de cumplimiento |
 | 8. Web React | 22–23 nov | Todas las vistas funcionando contra la API |
 | 9. Pruebas, despliegue y docs | 24 nov | Suite en verde, guion y ensayo de 10 min |
 | Entrega | 25 nov, mañana | Solo entrega. No se desarrolla. |
