@@ -28,6 +28,7 @@ import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -228,7 +229,14 @@ async def test_migration_creates_13_tables(session: AsyncSession):
 
 async def test_alembic_version_is_head(session: AsyncSession):
     rows = await session.execute(text("SELECT version_num FROM alembic_version"))
-    assert [row[0] for row in rows] == ["f2a17166bccd"]
+    applied = [row[0] for row in rows]
+    # La revision esperada se lee del directorio de migraciones
+    # (el head actual definido por Alembic), no de una cadena
+    # literal: asi la prueba sigue pasando tras cada migracion
+    # nueva sin tener que actualizarla.
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    heads = ScriptDirectory.from_config(cfg).get_heads()
+    assert sorted(applied) == sorted(heads)
 
 
 # ------------------------------------------------------------------

@@ -1,8 +1,8 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-17 — Saneamiento documental
-(sin commit ni push todavía). Fases 1 y 2 COMPLETADAS Y
-PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
+Última actualización: **2026-11-18 — Fase 3 COMPLETADA en
+implementación y pruebas (sin commit ni push todavía). Fases 1 y 2
+COMPLETADAS Y PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
 (implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
 (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
@@ -12,9 +12,28 @@ HEAD: `5f75de0c1a50c43f366d70c0a60ba138b581359d`.
 
 ## Fase actual
 
-**FASE 2: Modelos de datos y migraciones — COMPLETADA el
-2026-11-11 y PUBLICADA el mismo día en los commits `e8d4f0e`
-y `5f75de0`.**
+**FASE 3: Autenticación y seguridad — COMPLETADA en
+implementación y pruebas el 2026-11-18, en la rama
+`feature/fase-3-jwt`, SIN commit ni push todavía (el commit
+requiere autorización expresa aparte; su hash queda pendiente).**
+
+La Fase 3 se autorizó expresamente el 2026-11-18 (con las tres
+decisiones confirmadas: access token válido hasta 60 minutos
+tras el logout, refresh de 7 días con rotación atómica, y
+migración UNIQUE en `refresh_tokens.token_hash`) y se completó
+el mismo día en el PC de Jaider: registro atómico, login JSON,
+JWT access (HS256, 60 min) + refresh opaco (7 días, solo hash
+SHA-256) con rotación atómica (`UPDATE ... RETURNING`), logout,
+dependencia `current_user` con `HTTPBearer`, y migración
+`6ea5249ec805` (UNIQUE `uq_refresh_tokens_token_hash`,
+`down_revision = f2a17166bccd`). 49 pruebas nuevas (12 unitarias
++ 37 de integración) en verde; suite completa: 91 pasadas y 1
+fallo en un test existente de la Fase 2
+(`test_alembic_version_is_head`), que fija la revisión anterior
+`f2a17166bccd` y espera la nueva cabeza `6ea5249ec805`
+(actualización de una línea, pendiente). `alembic autogenerate`
+vacío. Limitación documentada (§7.5 del plan): el access token
+sigue válido hasta su expiración tras el logout.
 
 La Fase 1 quedó cerrada también en base de datos: PostgreSQL 17.11
 verificado funcionando en el contenedor `dosisalerta-postgres`
@@ -27,7 +46,7 @@ hasta la Fase 6), migración inicial Alembic `f2a17166bccd`
 aplicada en PostgreSQL local, 31 pruebas de modelos contra
 PostgreSQL real en verde (suite completa: 43 pasadas) y
 `alembic revision --autogenerate` sin diferencias entre modelos y
-esquema. La Fase 3 no se inicia hasta que se autorice por separado.
+esquema.
 
 ## Estado del bot de Telegram (sin publicar, 2026-11-17)
 
@@ -340,12 +359,10 @@ inserciones, 35 eliminaciones, push `77d0d5c..819c44b` en
 
 ## Próxima fase (SOLO cuando se autorice)
 
-**FASE 3: Autenticación y seguridad.** Ver criterios de
-aceptación completos en `docs/architecture/ROADMAP.md`, sección
-Fase 3. En resumen: registro y login, hash bcrypt, JWT access +
-refresh, y que solo el dueño vea sus datos. La Fase 2 ya está
-completada (ver "Fase actual"): modelos SQLAlchemy de las 13
-tablas, migración inicial con Alembic aplicada, restricciones y
-FK compuestas, y pruebas de que un cruce de cuentas falla por FK.
-La Fase 3 no se inicia hasta que el equipo la autorice por
-separado.
+**FASE 4: Gestión de medicamentos y tratamientos.** Ver
+criterios de aceptación completos en
+`docs/architecture/ROADMAP.md`, sección Fase 4. La Fase 3 ya
+está completada en implementación y pruebas (ver "Fase actual"):
+autenticación JWT con registro, login, refresh con rotación
+atómica, logout y `current_user`, y migración UNIQUE en
+`refresh_tokens.token_hash`.

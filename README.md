@@ -1,11 +1,15 @@
 # DOSISALERTA
 
-> **Estado: Fases 1 y 2 — Aprobadas y publicadas en GitHub.**
+> **Estado: Fases 1 y 2 — Aprobadas y publicadas en GitHub. Fase 3 —
+> Implementada y probada en la rama `feature/fase-3-jwt` (2026-11-18),
+> sin commit ni push todavía.**
 > Ya existe backend FastAPI con `GET /health` y frontend React con
 > pantalla inicial, y ya existen los modelos SQLAlchemy de las 13
-> tablas con su migración inicial Alembic aplicada. Todavía no hay
-> autenticación, medicamentos ni recordatorios. Commits en la rama
-> `main`, en https://github.com/DiomarOchoa/DOSISALERTA:
+> tablas con su migración inicial Alembic aplicada. La Fase 3 añade
+> autenticación JWT: registro, login, refresh con rotación atómica,
+> logout y ruta protegida `/me` (5 endpoints bajo `/api/v1/auth`),
+> con 49 pruebas nuevas en verde. Todavía no hay medicamentos ni
+> recordatorios. Commits en la rama `main`, en https://github.com/DiomarOchoa/DOSISALERTA:
 > `2bc7ec8` (Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
 > (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 > (correcciones finales Fase 1, 7 archivos, 2026-11-04),
@@ -19,8 +23,13 @@
 > (`pg_isready` con "accepting connections", ver
 > `docs/ENTORNO_LOCAL.md`). El esqueleto de demostración del bot
 > de Telegram existe solo localmente, sin publicar, y su
-> integración completa sigue siendo de la Fase 6. La Fase 3 no
-> está iniciada ni autorizada.
+> integración completa sigue siendo de la Fase 6. La Fase 3 está
+> implementada y probada (2026-11-18) en la rama
+> `feature/fase-3-jwt`, pendiente de commit y de autorización para
+> publicar; la suite da 91 pasadas y 1 fallo en un test existente
+> de la Fase 2 (`test_alembic_version_is_head`), que fija la
+> revisión anterior `f2a17166bccd` y espera la nueva cabeza
+> `6ea5249ec805` (actualización de una línea, pendiente).
 
 ## El problema
 
@@ -72,7 +81,12 @@ datos para la web y otra para Telegram.
 - [x] Fase 2: modelos y base de datos PostgreSQL (aprobada y
       publicada, commits `e8d4f0e` y `5f75de0`; migración inicial
       `f2a17166bccd`, 13 tablas, 31 pruebas de modelos en verde).
-- [ ] Fase 3: autenticación JWT y seguridad por usuario.
+- [x] Fase 3: autenticación JWT y seguridad por usuario
+      (implementada y probada el 2026-11-18 en la rama
+      `feature/fase-3-jwt`, sin commit ni push todavía; registro,
+      login, refresh con rotación atómica, logout y `/me`;
+      migración `6ea5249ec805` con UNIQUE en
+      `refresh_tokens.token_hash`; 49 pruebas nuevas en verde).
 - [ ] Fase 4: medicamentos, tratamientos, dosis y horarios.
 - [ ] Fase 5: motor de recordatorios con cola de prioridad y
       prevención de duplicados.
@@ -92,7 +106,7 @@ datos para la web y otra para Telegram.
 | Configuración | python-dotenv | Instalado en la Fase 1 (1.2.4). Secretos solo en `.env`, nunca en el repo. |
 | Base de datos | PostgreSQL | `postgres:17.11-alpine` en Docker (desarrollo). Verificado 17.11 el 2026-11-11; el contenedor publica en el puerto del host 5433 (el 5432 lo ocupa un PostgreSQL 18 nativo). |
 | Bot | python-telegram-bot | Esqueleto de demostración local, sin publicar (python-telegram-bot 22.8 en el árbol de trabajo, sin commit). Integración completa en la Fase 6. Polling en desarrollo (ver decisiones). |
-| Autenticación | JWT (PyJWT) + bcrypt | Previsto para la Fase 3, no instalado. Access 60 min, refresh 7 días. |
+| Autenticación | JWT (PyJWT) + bcrypt | Instalado en la Fase 3 (PyJWT 2.15.1, bcrypt 5.0.0, email-validator 2.4.0). Access 60 min, refresh 7 días con rotación atómica. |
 | Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). En la Fase 2 se añadió pytest-asyncio 1.4.1.post1 para las 31 pruebas de modelos contra PostgreSQL real. |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
 | Entorno | Docker y Docker Compose | Solo PostgreSQL, verificado el 2026-11-11 (ver `docs/ENTORNO_LOCAL.md`) |
@@ -102,8 +116,11 @@ Versiones canónicas (Fase A): Python 3.13.4, Node.js 24.12.0,
 npm 11.6.2, PostgreSQL 17.11. Dependencias verificadas: FastAPI
 0.162.0, Uvicorn 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React
 19.3.1, Vite 6.4.5, TypeScript 5.9.3. En el PC del equipo,
-`pytest` dio 43 passed (12 de la Fase 1 y 31 de la Fase 2),
-`uvicorn` arrancó en 8000, `/health` respondió
+`pytest` dio 43 passed (12 de la Fase 1 y 31 de la Fase 2) antes
+de la Fase 3; tras la Fase 3, en el PC de Jaider, la suite da
+91 passed y 1 fallo en un test existente de la Fase 2 que fija
+la revisión anterior (ver el estado, arriba). `uvicorn` arrancó
+en 8000, `/health` respondió
 `{"status":"ok","app":"DosisAlerta","version":"0.1.0"}` y el
 frontend en 5173 mostró "Backend en línea (versión 0.1.0)".
 Detalle completo en `backend/README.md`, `frontend/README.md` y
@@ -170,8 +187,8 @@ DosisAlerta/
 Copy-Item .env.example .env
 # Editar .env: contraseña de PostgreSQL y POSTGRES_PORT según el
 # paso 8 de docs/GUIA_INSTALACION_WINDOWS.md (detectar puertos
-# primero). Ver .env.example: 9 variables implementadas; JWT y
-# Telegram son reservadas para las Fases 3 y 6.
+# primero). Ver .env.example: 13 variables implementadas (9 + 4 JWT); Telegram es
+# reservada para la Fase 6.
 
 # 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
 # Detectar puertos primero (Test-NetConnection a 5432 y 5433):
@@ -206,8 +223,8 @@ npm run dev
 cp .env.example .env
 # Editar .env: contraseña de PostgreSQL y POSTGRES_PORT con el
 # primer puerto libre (ver docs/GUIA_INSTALACION_WINDOWS.md,
-# paso 8). Ver .env.example: 9 variables implementadas; JWT y
-# Telegram son reservadas para las Fases 3 y 6.
+# paso 8). Ver .env.example: 13 variables implementadas (9 + 4 JWT); Telegram es
+# reservada para la Fase 6.
 
 # 2. Base de datos local (requiere Docker; verificada el 2026-11-11)
 docker compose config --quiet
@@ -238,6 +255,37 @@ ejecuta con `python -m app.bot.main` **solo a partir de la Fase 6**.
 Existe un esqueleto de demostración con datos ficticios, solo
 local y sin publicar, que no debe ejecutarse como integración
 real: no toca PostgreSQL, ni JWT, ni servicios reales.
+
+## Autenticación (Fase 3)
+
+Desde la Fase 3, el backend expone autenticación JWT bajo
+`/api/v1/auth` (registro, login JSON, refresh con rotación
+atómica, logout y perfil). Las variables JWT de `.env.example`
+ya son **implementadas** (antes reservadas); Telegram sigue
+reservado para la Fase 6.
+
+| Método y ruta | Protegido | Respuesta |
+|---|---|---|
+| `POST /api/v1/auth/register` | No | 201, usuario + tokens |
+| `POST /api/v1/auth/login` | No (JSON) | 200, access + refresh |
+| `POST /api/v1/auth/refresh` | No (refresh token) | 200, tokens nuevos |
+| `POST /api/v1/auth/logout` | No (refresh token) | 200, `{"detail": "Sesión cerrada"}` |
+| `GET /api/v1/auth/me` | Sí (`current_user`) | 200, perfil sin `password_hash` |
+
+- Contraseñas con bcrypt (mínimo 8 caracteres, máximo 72 bytes
+  UTF-8). Nunca se guardan ni se devuelven en claro.
+- Access token JWT HS256 (60 minutos), refresh token opaco de
+  7 días guardado solo como hash SHA-256, con rotación atómica
+  (`UPDATE ... RETURNING`): de 5 renovaciones simultáneas con el
+  mismo token, exactamente 1 tiene éxito.
+- En Swagger (`/docs`), el diálogo "Authorize" acepta el access
+  token pegado directamente (`HTTPBearer`); el login sigue
+  siendo JSON.
+- **Limitación expresa:** revocar el refresh token (logout)
+  impide renovar la sesión, pero el access token emitido antes
+  sigue válido hasta su expiración (hasta 60 minutos). Es el
+  compromiso aceptado del JWT sin estado; la revocación total de
+  access tokens queda fuera de la Fase 3.
 
 ## Integración con Telegram
 
@@ -305,6 +353,16 @@ con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,
   ejecutando de verdad las 31 pruebas de modelos contra
   PostgreSQL 17.11 real (suite completa: 43 pasadas) y
   `alembic revision --autogenerate` sin diferencias.
+- **Qué hizo la IA en la Fase 3:** escribir la autenticación JWT
+  (registro atómico, login JSON, refresh con rotación atómica,
+  logout, dependencia `current_user` con `HTTPBearer`), la
+  migración UNIQUE en `refresh_tokens.token_hash` y las 49
+  pruebas nuevas (12 unitarias + 37 de integración), ejecutando
+  de verdad la suite completa contra PostgreSQL 17.11 real
+  (91 pasadas; 1 fallo en un test existente de la Fase 2 que fija
+  la revisión anterior, pendiente de una actualización de una
+  línea). La limitación de que el access token sigue válido hasta
+  60 minutos tras el logout está documentada, no oculta.
 - **Qué NO hace la IA por el equipo:** no sustituye la comprensión del
   código. En la sustentación presencial de 10 minutos, cada integrante
   debe poder explicar su módulo: qué hace, por qué se diseñó así y

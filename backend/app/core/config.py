@@ -12,10 +12,11 @@ Reglas que este archivo cumple:
   Pydantic (validacion de tipos) + ``python-dotenv`` (carga de
   ``.env``), que ya son dependencias del proyecto. Asi no se anade
   ninguna libreria innecesaria.
-- Lo que todavia no se usa (JWT, token de Telegram) NO se lee aqui
-  todavia: se anadira en su fase (Fase 3 y Fase 6), para no aparentar
+- Lo que todavia no se usa (token de Telegram) NO se lee aqui
+  todavia: se anadira en su fase (Fase 6), para no aparentar
   funcionalidades que no existen. Ver ``.env.example``: esas
-  variables estan marcadas como RESERVADAS.
+  variables estan marcadas como RESERVADAS. Las variables JWT se
+  leen desde la Fase 3.
 
 Uso::
 
@@ -45,18 +46,26 @@ def _getenv(name: str, default: str) -> str:
     return default if value is None or value == "" else value
 
 
-def _getint(name: str, default: int) -> int:
-    """Lee una variable entera de puerto, con validacion explicita.
+def _getint(
+    name: str,
+    default: int,
+    minimum: int = 1,
+    maximum: int | None = 65535,
+    label: str = "puerto",
+) -> int:
+    """Lee una variable entera, con validacion explicita.
 
     - Si la variable no existe o esta vacia, usa el defecto.
     - Si no es un numero entero, falla con un error que nombra la
       variable, en lugar de arrancar en silencio con el defecto.
-    - Si no esta entre 1 y 65535, falla con un error que nombra la
+    - Si esta fuera del rango [minimum, maximum] (maximum None =
+      sin limite superior), falla con un error que nombra la
       variable y el valor.
 
-    Esta funcion solo se usa para puertos (`PORT` y
-    `POSTGRES_PORT`). Si en el futuro se necesitara para otro numero
-    que no sea un puerto, habria que separar la validacion de rango.
+    Por defecto valida puertos (1-65535, etiqueta "puerto"); para
+    otros enteros se pasan `minimum`, `maximum` y `label` (por
+    ejemplo, los minutos y dias de JWT, que solo exigen ser
+    mayores que 0).
     Fallar al arrancar es intencionado: una configuracion mal escrita
     debe verse en la configuracion, no mas tarde en Uvicorn o en la
     base de datos con un error confuso.
@@ -71,9 +80,13 @@ def _getint(name: str, default: int) -> int:
             f"La variable {name} debe ser un numero entero, "
             f"pero vale {raw!r}. Revisa tu .env."
         ) from None
-    if not 1 <= value <= 65535:
+    if value < minimum or (maximum is not None and value > maximum):
+        if maximum is None:
+            rango = f"mayor que {minimum - 1}"
+        else:
+            rango = f"entre {minimum} y {maximum}"
         raise ValueError(
-            f"La variable {name} debe ser un puerto entre 1 y 65535, "
+            f"La variable {name} debe ser un {label} {rango}, "
             f"pero vale {value}."
         )
     return value
@@ -104,6 +117,15 @@ class Settings(BaseModel):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 
+    # Autenticacion JWT (Fase 3). JWT_SECRET es obligatorio y debe
+    # tener al menos 32 caracteres; su valor nunca se imprime en
+    # logs ni en mensajes de error. JWT_ALGORITHM solo admite HS256
+    # en esta fase. Los tiempos son enteros mayores que 0.
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
+    jwt_access_expiration_minutes: int = 60
+    jwt_refresh_expiration_days: int = 7
+
     def __init__(self, **data):
         """Sobrescribe los defectos con variables de entorno, si existen."""
         data.setdefault("host", _getenv("HOST", "127.0.0.1"))
@@ -114,7 +136,37 @@ class Settings(BaseModel):
         data.setdefault("postgres_password", _getenv("POSTGRES_PASSWORD", "dosisalerta"))
         data.setdefault("postgres_host", _getenv("POSTGRES_HOST", "localhost"))
         data.setdefault("postgres_port", _getint("POSTGRES_PORT", 5432))
+        data.setdefault("jwt_secret", _getenv("JWT_SECRET", ""))
+        data.setdefault("jwt_algorithm", _getenv("JWT_ALGORITHM", "HS256"))
+        data.setdefault(
+            "jwt_access_expiration_minutes",
+            _getint(
+                "JWT_ACCESS_EXPIRATION_MINUTES", 60,
+                minimum=1, maximum=None, label="entero",
+            ),
+        )
+        data.setdefault(
+            "jwt_refresh_expiration_days",
+            _getint(
+                "JWT_REFRESH_EXPIRATION_DAYS", 7,
+                minimum=1, maximum=None, label="entero",
+            ),
+        )
         super().__init__(**data)
+        if not self.jwt_secret:
+            raise ValueError(
+                "JWT_SECRET no está configurado. Genera un secreto de al menos "
+                "32 caracteres y definelo en .env (ver .env.example)."
+            )
+        if len(self.jwt_secret) < 32:
+            raise ValueError(
+                "JWT_SECRET debe tener al menos 32 caracteres."
+            )
+        if self.jwt_algorithm != "HS256":
+            raise ValueError(
+                "JWT_ALGORITHM solo admite HS256 en la Fase 3, "
+                f"pero vale {self.jwt_algorithm!r}."
+            )
 
     @property
     def cors_origins(self) -> list[str]:

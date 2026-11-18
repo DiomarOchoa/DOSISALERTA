@@ -42,7 +42,7 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
 | 0. Fundación | 4 nov | Esta documentación |
 | 1. Entorno y backend | Realizada 4 nov (propuesta 5–7 nov) | API `/health` + 1 test en verde (BD verificada el 2026-11-11) |
 | 2. Modelos y BD | Realizada 11 nov (propuesta 8–10 nov) | Migraciones Alembic aplicadas (`f2a17166bccd`, 13 tablas) |
-| 3. Autenticación | 11–12 nov | Registro, login JWT y ruta protegida |
+| 3. Autenticación | Realizada 18 nov (propuesta 11–12 nov) | Registro, login JWT y ruta protegida (migración `6ea5249ec805`, 49 pruebas nuevas) |
 | 4. Medicamentos y tratamientos | 13–15 nov | CRUD con horarios y recordatorios generados |
 | 5. Motor de recordatorios | 16–18 nov | Envío real con efecto único y sin fallos silenciosos tras reinicio |
 | 6. Bot de Telegram | 19–20 nov | Vincular, confirmar y posponer desde Telegram |
@@ -155,6 +155,19 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   ninguna consulta olvida el filtro por `user_id`.
 - Commits: `feat: implement user registration`,
   `feat: implement jwt authentication`, `test: add auth security tests`.
+- Estado (2026-11-18): COMPLETADA en implementación y pruebas en
+  la rama `feature/fase-3-jwt`, SIN commit ni push todavía (el
+  commit requiere autorización expresa aparte; su hash queda
+  pendiente). Registro atómico, login JSON, JWT access (HS256,
+  60 min) + refresh opaco (7 días, solo hash SHA-256) con
+  rotación atómica, logout, `current_user` con `HTTPBearer`, y
+  migración `6ea5249ec805` (UNIQUE `uq_refresh_tokens_token_hash`).
+  49 pruebas nuevas (12 unitarias + 37 de integración) en verde;
+  suite: 91 pasadas y 1 fallo en un test existente de la Fase 2
+  (`test_alembic_version_is_head`), que fija la revisión anterior
+  `f2a17166bccd` y espera la nueva cabeza (actualización de una
+  línea, pendiente). Limitación documentada: el access token sigue
+  válido hasta su expiración tras el logout (§7.5 del plan).
 
 ### FASE 4 — Gestión de medicamentos y tratamientos
 

@@ -12,11 +12,14 @@ requires-python = ">=3.12,<3.14"
 # - Entorno de desarrollo: Python 3.12.3.
 # - PC del equipo: Python 3.13.4.
 # Fijarlas evita que una instalacion futura resuelva versiones nuevas
-# sin probar y rompa la Fase 1. No se crea un requirements.txt aparte
-# ni un archivo de bloqueo: pyproject.toml sigue siendo la unica fuente.
+# sin probar y rompa la Fase 1. Las versiones exactas instaladas
+# (directas y transitivas) se fijan en `requirements-lock.txt`
+# (Fase A), generado con `pip freeze` desde el entorno verificado.
 # Para actualizar una version: cambiarla aqui, reinstalar con
-# pip install -e ".[dev]" y volver a pasar pytest. Nunca hacer
-# pip install --upgrade suelto, porque eso dejaria de ser reproducible.
+# `pip install -e ".[dev]"` en un entorno limpio, volver a pasar
+# pytest y regenerar el lock con `pip freeze` (ver la cabecera del
+# lock). Nunca hacer `pip install --upgrade` suelto, porque eso
+# dejaria de ser reproducible.
 # Compatibilidad: todas estas versiones declaran soporte para Python
 # 3.12 y 3.13, y FastAPI 0.162.0 exige starlette>=0.46 y pydantic>=2,
 # que quedan cubiertos por las versiones fijadas abajo y sus
@@ -42,6 +45,12 @@ dependencies = [
     "alembic==1.20.1",
     # Fase 2: controlador PostgreSQL asincrono para SQLAlchemy async.
     "asyncpg==0.32.0",
+    # Fase 3: codificacion y decodificacion de JWT (access tokens).
+    "PyJWT==2.15.1",
+    # Fase 3: hash de contrasenas (hashpw, gensalt, checkpw).
+    "bcrypt==5.0.0",
+    # Fase 3: validacion de formato de email para EmailStr de Pydantic.
+    "email-validator==2.4.0",
 ]
 
 [project.optional-dependencies]

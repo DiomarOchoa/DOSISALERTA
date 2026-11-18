@@ -12,7 +12,11 @@ usuario `dosisalerta` confirmados con `SELECT version()` y
 la imagen tuvo que hacerse en una terminal interactiva (ver
 "Problema conocido" abajo). **Fase 2 COMPLETADA el 2026-11-11:**
 migración inicial Alembic `f2a17166bccd` aplicada, 13 tablas en la
-base `dosisalerta`, 31 pruebas de modelos en verde. El contenedor
+base `dosisalerta`, 31 pruebas de modelos en verde. **Fase 3
+COMPLETADA en implementación y pruebas el 2026-11-18** (rama
+`feature/fase-3-jwt`, sin commit todavía): migración
+`6ea5249ec805` (UNIQUE en `refresh_tokens.token_hash`), 49
+pruebas nuevas en verde. El contenedor
 se publica en el puerto del host **5433** por el conflicto con un
 PostgreSQL 18 nativo (ver "Problema conocido" abajo).
 
@@ -84,7 +88,9 @@ del contenedor pasa a `healthy`, y las consultas devuelven
 PostgreSQL 17 con base de datos `dosisalerta` y usuario `dosisalerta`.
 
 Pruebas: desde `backend/`, con el entorno virtual activado,
-`pytest` debe dar 43 passed (12 de la Fase 1 y 31 de la Fase 2).
+`pytest` debe dar 91 passed y 1 fallo (12 de la Fase 1, 31 de
+la Fase 2 y 49 de la Fase 3; el fallo es un test existente de
+la Fase 2 que fija la revisión anterior, ver README.md).
 Las pruebas de modelos necesitan PostgreSQL en marcha y usan la
 base de datos aislada `dosisalerta_test`, que la propia sesión de
 pruebas crea y migra; la base de desarrollo no recibe filas de
@@ -121,8 +127,9 @@ docker compose down        # detiene sin borrar el volumen ni los datos
 > `.env` raíz antiguo todavía la tiene, es una clave ignorada.
 > Las variables de arriba se dividen en **implementadas**
 > (PostgreSQL y servidor: `POSTGRES_*`, `HOST`, `PORT`, `DEBUG`,
-> `CORS_ORIGINS`) y **reservadas** (JWT para la Fase 3 y Telegram
-> para la Fase 6, que el backend aún no lee); ver `.env.example`.
+> `CORS_ORIGINS`; y JWT desde la Fase 3, completada el
+> 2026-11-18) y **reservadas** (Telegram para la Fase 6, que el
+> backend aún no lee); ver `.env.example`.
 
 Los tres secretos (`POSTGRES_PASSWORD`, `JWT_SECRET`,
 `TELEGRAM_LINK_SECRET`) deben ser valores distintos, generados con
@@ -225,8 +232,11 @@ docker compose logs postgres
    `frontend/.env`). `POSTGRES_PORT` no es siempre 5432: primero
    hay que comprobar los puertos del PC (ver
    `docs/GUIA_INSTALACION_WINDOWS.md`, paso 8) y poner el primer
-   puerto libre. `JWT_*` y `TELEGRAM_*` son variables reservadas
-   (Fases 3 y 6, sin iniciar): el backend no las lee todavía.
+   puerto libre. `JWT_*` son variables implementadas desde la
+   Fase 3 (completada el 2026-11-18): el backend las lee y
+   `JWT_SECRET` es obligatorio (mínimo 32 caracteres).
+   `TELEGRAM_*` siguen reservadas (Fase 6, sin iniciar): el
+   backend no las lee todavía.
 4. Verificar que `.env` está en `.gitignore` y no se sube a Git.
 5. Validar con `docker compose config --quiet`.
 6. Iniciar solo PostgreSQL con `docker compose up -d postgres`
@@ -234,5 +244,7 @@ docker compose logs postgres
    conocido de arriba).
 7. Comprobar con `pg_isready` y las consultas SQL de la sección 5.
 8. La Fase 2 ya está autorizada y completada (migración
-   `f2a17166bccd`, 13 tablas). La tabla 14
-   `caregiver_link_attempts` NO se migra hasta la Fase 6.
+   `f2a17166bccd`, 13 tablas). La Fase 3 también está completada
+   en implementación y pruebas (2026-11-18): migración
+   `6ea5249ec805` (UNIQUE en `refresh_tokens.token_hash`).
+   La tabla 14 `caregiver_link_attempts` NO se migra hasta la Fase 6.
