@@ -2,5 +2,7 @@
 
 Desde la Fase 2 viven aqui los repositorios de los modelos
 (`user_repository.py` y `refresh_token_repository.py` llegan en
-la Fase 3). Ninguna ruta debe hacer SQL directamente.
+la Fase 3). Desde la Fase 4, `medication_repository.py`
+(catalogo propio del usuario). Ninguna ruta debe hacer SQL
+directamente.
 """

@@ -19,7 +19,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, health
+from app.api.routers import auth, health, medications
 from app.core.config import get_settings
 
 
@@ -32,8 +32,9 @@ def create_app() -> FastAPI:
         description=(
             "API de DosisAlerta: gestion y seguimiento de tratamientos "
             "medicos. Expone el endpoint de salud y, desde la Fase 3, "
-            "la autenticacion JWT (`/api/v1/auth`); la documentacion "
-            "completa se genera sola en /docs."
+            "la autenticacion JWT (`/api/v1/auth`); desde la Fase 4, "
+            "el catalogo de medicamentos (`/api/v1/medications`); la "
+            "documentacion completa se genera sola en /docs."
         ),
         version="0.1.0",
     )
@@ -57,6 +58,11 @@ def create_app() -> FastAPI:
     # HTTPException (401/409) y RequestValidationError (422) con sus
     # manejadores propios; un catch-all los convertiria en 500.
     app.include_router(auth.router, prefix="/api/v1")
+
+    # Medicamentos (Fase 4, RF04): catalogo propio del usuario, con
+    # reglas de cuidador (diseno §4.6.2). Los routers de
+    # tratamientos, horarios y recordatorios llegan con sus modulos.
+    app.include_router(medications.router, prefix="/api/v1")
 
     return app
 
