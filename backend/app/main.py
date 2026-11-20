@@ -19,7 +19,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, health, medications
+from app.api.routers import auth, health, medications, treatments
 from app.core.config import get_settings
 
 
@@ -33,7 +33,9 @@ def create_app() -> FastAPI:
             "API de DosisAlerta: gestion y seguimiento de tratamientos "
             "medicos. Expone el endpoint de salud y, desde la Fase 3, "
             "la autenticacion JWT (`/api/v1/auth`); desde la Fase 4, "
-            "el catalogo de medicamentos (`/api/v1/medications`); la "
+            "el catalogo de medicamentos (`/api/v1/medications`) y "
+            "los tratamientos con sus vinculos "
+            "(`/api/v1/treatments`); la "
             "documentacion completa se genera sola en /docs."
         ),
         version="0.1.0",
@@ -61,8 +63,13 @@ def create_app() -> FastAPI:
 
     # Medicamentos (Fase 4, RF04): catalogo propio del usuario, con
     # reglas de cuidador (diseno §4.6.2). Los routers de
-    # tratamientos, horarios y recordatorios llegan con sus modulos.
+    # horarios y recordatorios llegan con sus modulos.
     app.include_router(medications.router, prefix="/api/v1")
+
+    # Tratamientos y vinculos (Fase 4, RF05/RF06/RF08): planes con
+    # medicamentos, dosis y horarios, con maquina de estados y
+    # generacion de recordatorios (diseno §4.6.3-§4.6.5 y §4.7).
+    app.include_router(treatments.router, prefix="/api/v1")
 
     return app
 
