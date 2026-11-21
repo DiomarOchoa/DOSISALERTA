@@ -11,12 +11,13 @@ import MedicationDetailPage from "./pages/MedicationDetailPage";
 import TreatmentsPage from "./pages/TreatmentsPage";
 import TreatmentCreatePage from "./pages/TreatmentCreatePage";
 import TreatmentDetailPage from "./pages/TreatmentDetailPage";
+import RemindersPage from "./pages/RemindersPage";
 import HistoryPage from "./pages/HistoryPage";
 import StatsPage from "./pages/StatsPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// Estructura de rutas de la Fase 8 (Entrega 3: tratamientos).
+// Estructura de rutas de la Fase 8 (Entrega 2: medicamentos).
 // Las rutas publicas (/login, /registro) estan abiertas; todas las
 // demas pasan por ProtectedRoute, que redirige a /login sin sesion.
 // Las paginas sin implementar siguen siendo marcadores honestos
@@ -54,6 +55,7 @@ export default function App() {
                 path="/tratamientos/:id"
                 element={<TreatmentDetailPage />}
               />
+              <Route path="/recordatorios" element={<RemindersPage />} />
               <Route path="/historial" element={<HistoryPage />} />
               <Route path="/estadisticas" element={<StatsPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
