@@ -51,6 +51,10 @@ dependencies = [
     "bcrypt==5.0.0",
     # Fase 3: validacion de formato de email para EmailStr de Pydantic.
     "email-validator==2.4.0",
+    # Preparacion del bot (demostracion): cliente de Telegram por polling.
+    # Solo httpx como dependencia base; sin extras de la libreria.
+    # Version autorizada por el lider tecnico el 2026-11-11.
+    "python-telegram-bot==22.8",
 ]
 
 [project.optional-dependencies]
