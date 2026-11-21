@@ -87,18 +87,19 @@ class MedicationReminder(Base):
             "scheduled_at",
             postgresql_where=text("status IN ('PENDIENTE', 'ENVIANDO')"),
         ),
-        # UNIQUE parcial (Fase 4, decision B): solo cubre los estados
-        # activos. Un hueco con una fila CANCELADA (u otra inactiva)
-        # admite un PENDIENTE nuevo, asi el resume crea recordatorios
-        # sin borrar el historial; dos activos en el mismo hueco
-        # siguen siendo imposibles.
+        # UNIQUE parcial (Fase 4, decision B; Fase A, I-10): cubre
+        # los estados activos y TOMADA. Un hueco con una fila
+        # CANCELADA (u otra inactiva) admite un PENDIENTE nuevo,
+        # asi el resume crea recordatorios sin borrar el historial;
+        # dos activos en el mismo hueco siguen siendo imposibles,
+        # y una franja TOMADA no admite un segundo PENDIENTE.
         Index(
             "uq_reminders_schedule_time",
             "schedule_id",
             "scheduled_at",
             unique=True,
             postgresql_where=text(
-                "status IN ('PENDIENTE', 'ENVIANDO', 'ENVIADA')"
+                "status IN ('PENDIENTE', 'ENVIANDO', 'ENVIADA', 'TOMADA')"
             ),
         ),
     )

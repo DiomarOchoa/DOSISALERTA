@@ -527,14 +527,18 @@ async def test_enviada_and_cancelled_not_loaded(
     test_engine, session_factory, _chain
 ) -> None:
     now = _utcnow()
+    # Fase A, I-10: las cuatro filas van en instantes distintos.
+    # Antes compartían el mismo hueco, pero el índice parcial ahora
+    # cubre TOMADA y una TOMADA ya no puede coexistir con una
+    # ENVIADA en el mismo (schedule_id, scheduled_at).
     await _seed_reminders(
         test_engine,
         _chain,
         [
             (now + timedelta(hours=1), "ENVIADA"),
-            (now + timedelta(hours=1), "CANCELADA"),
-            (now + timedelta(hours=1), "TOMADA"),
-            (now + timedelta(hours=1), "PERDIDA"),
+            (now + timedelta(hours=2), "CANCELADA"),
+            (now + timedelta(hours=3), "TOMADA"),
+            (now + timedelta(hours=4), "PERDIDA"),
         ],
     )
     await _deactivate_schedule(test_engine, _chain["schedule_id"])

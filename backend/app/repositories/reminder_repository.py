@@ -52,10 +52,10 @@ async def create_many(session: AsyncSession, rows: list[dict]) -> int:
 
     `INSERT ... ON CONFLICT DO NOTHING` sobre la UNIQUE parcial
     `(schedule_id, scheduled_at)` (`uq_reminders_schedule_time`,
-    solo estados activos): regenerar nunca duplica un
-    recordatorio activo, y un hueco con una fila CANCELADA (u
-    otra inactiva) si admite un PENDIENTE nuevo. Devuelve el
-    numero de filas insertadas (0 si `rows` esta vacio).
+    estados activos + TOMADA): regenerar nunca duplica un
+    recordatorio activo ni una franja TOMADA, y un hueco con una
+    fila CANCELADA (u otra inactiva) si admite un PENDIENTE nuevo.
+    Devuelve el numero de filas insertadas (0 si `rows` esta vacio).
     """
     if not rows:
         return 0
@@ -63,7 +63,7 @@ async def create_many(session: AsyncSession, rows: list[dict]) -> int:
     stmt = stmt.on_conflict_do_nothing(
         index_elements=["schedule_id", "scheduled_at"],
         index_where=MedicationReminder.status.in_(
-            ["PENDIENTE", "ENVIANDO", "ENVIADA"]
+            ["PENDIENTE", "ENVIANDO", "ENVIADA", "TOMADA"]
         ),
     )
     result = await session.execute(stmt)
@@ -187,6 +187,35 @@ async def cancel_pending_for_treatment(
     """
     subquery = select(TreatmentMedication.id).where(
         TreatmentMedication.treatment_id == treatment_id
+    )
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.treatment_medication_id.in_(subquery),
+            MedicationReminder.status.in_(["PENDIENTE", "ENVIANDO"]),
+            MedicationReminder.scheduled_at >= now,
+        )
+        .values(status="CANCELADA")
+    )
+    result = await session.execute(stmt)
+    return result.rowcount or 0
+
+
+async def cancel_pending_for_medication(
+    session: AsyncSession, medication_id: int, user_id: int, now: datetime
+) -> int:
+    """Cancela los recordatorios PENDIENTE y ENVIANDO futuros de
+    un medicamento (status -> CANCELADA).
+
+    Lo usa desactivar un medicamento (Fase A, I-3, opcion A): al
+    desactivar, sus recordatorios futuros se cancelan en la misma
+    transaccion, para que el paciente deje de recibir avisos de un
+    farmaco que ya no debe tomar. No toca TOMADA, POSPUESTA,
+    PERDIDA ni ENVIADA: el historial se conserva (diseno §4.6.4).
+    """
+    subquery = select(TreatmentMedication.id).where(
+        TreatmentMedication.medication_id == medication_id,
+        TreatmentMedication.user_id == user_id,
     )
     stmt = (
         update(MedicationReminder)

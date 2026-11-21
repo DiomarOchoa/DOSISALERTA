@@ -24,12 +24,14 @@ existe pero pertenece a otro usuario.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.medications import Medication
 from app.models.users import User
-from app.repositories import medication_repository
+from app.repositories import medication_repository, reminder_repository
 from app.schemas.medications import (
     MedicationCreate,
     MedicationResponse,
@@ -329,6 +331,16 @@ async def deactivate_medication(
             )
             raise HTTPException(status_code=403, detail=_FORBIDDEN_ERROR)
         medication_repository.deactivate(session, medication)
+        # Fase A, I-3 (opcion A): desactivar cancela sus futuros
+        # recordatorios PENDIENTE/ENVIANDO en la misma transaccion,
+        # para que el paciente deje de recibir avisos de un farmaco
+        # que ya no debe tomar. El historial no se toca.
+        await reminder_repository.cancel_pending_for_medication(
+            session,
+            medication.id,
+            effective_user_id,
+            datetime.now(timezone.utc),
+        )
         if _is_caregiver(actor, effective_user_id):
             caregiver_access.audit_action(
                 session,

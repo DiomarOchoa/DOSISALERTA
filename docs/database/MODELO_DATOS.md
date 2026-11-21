@@ -428,7 +428,12 @@ CREATE INDEX idx_reminders_user_scheduled ON medication_reminders(user_id, sched
 CREATE INDEX idx_reminders_status_scheduled ON medication_reminders(status, scheduled_at)
   WHERE status IN ('PENDIENTE', 'ENVIANDO');
 CREATE UNIQUE INDEX uq_reminders_schedule_time
-  ON medication_reminders(schedule_id, scheduled_at);
+  ON medication_reminders(schedule_id, scheduled_at)
+  WHERE status IN ('PENDIENTE', 'ENVIANDO', 'ENVIADA', 'TOMADA');
+-- Índice parcial (Fase 4, decisión B; Fase A, I-10): un hueco con una
+-- fila CANCELADA (u otra inactiva) admite un PENDIENTE nuevo, así el
+-- resume no borra el historial; una franja TOMADA no admite un
+-- segundo PENDIENTE.
 
 -- Historial y estadísticas
 CREATE INDEX idx_intakes_user_taken ON medication_intakes(user_id, taken_at DESC);

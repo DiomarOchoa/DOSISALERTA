@@ -122,6 +122,11 @@ async def _topup_one(
         )
         if link is None or not link.is_active:
             return 0
+        # Fase A, I-3: un medicamento desactivado no genera
+        # recordatorios (el vinculo sigue activo, pero el farmaco
+        # ya no debe tomarse).
+        if link.medication is None or not link.medication.is_active:
+            return 0
         treatment = await treatment_repository.get_by_id(
             session, link.treatment_id, user_id=schedule.user_id
         )
