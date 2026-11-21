@@ -5,12 +5,15 @@ import { AppLayout, PublicLayout } from "./components/Layout";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import MedicationsPage from "./pages/MedicationsPage";
+import MedicationCreatePage from "./pages/MedicationCreatePage";
+import MedicationDetailPage from "./pages/MedicationDetailPage";
 import HistoryPage from "./pages/HistoryPage";
 import StatsPage from "./pages/StatsPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// Estructura de rutas de la Fase 8 (Entrega 1: autenticación).
+// Estructura de rutas de la Fase 8 (Entrega 2: medicamentos).
 // Las rutas publicas (/login, /registro) estan abiertas; todas las
 // demas pasan por ProtectedRoute, que redirige a /login sin sesion.
 // Las paginas sin implementar siguen siendo marcadores honestos
@@ -30,6 +33,15 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/inicio" replace />} />
               <Route path="/inicio" element={<DashboardPage />} />
+              <Route path="/medicamentos" element={<MedicationsPage />} />
+              <Route
+                path="/medicamentos/nuevo"
+                element={<MedicationCreatePage />}
+              />
+              <Route
+                path="/medicamentos/:id"
+                element={<MedicationDetailPage />}
+              />
               <Route path="/historial" element={<HistoryPage />} />
               <Route path="/estadisticas" element={<StatsPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
