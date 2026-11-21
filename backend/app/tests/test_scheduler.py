@@ -1,4 +1,4 @@
-"""Pruebas del scheduler y la reclamacion atomica (Fase 5, Etapa 2).
+"""Pruebas del scheduler, el envio real y los reintentos (Fase 5, Etapas 2-3).
 
 Contra PostgreSQL real, en la base de pruebas aislada
 (`dosisalerta_test`) creada vacia y migrada con Alembic, igual
@@ -9,13 +9,20 @@ distintas, vean las filas) y cada prueba borra sus filas al final
 (por usuario unico). Los recordatorios se siembran directamente
 con el ORM para controlar el instante exacto (`scheduled_at`).
 
-Criterios que se verifican (aceptacion de la Etapa 2):
+Criterios que se verifican (aceptacion de las Etapas 2 y 3):
 - Dos reclamaciones concurrentes del mismo recordatorio:
   exactamente una gana.
 - Los PENDIENTE se recuperan despues de reiniciar el scheduler.
 - Los ENVIADA no vuelven a la cola.
 - El scheduler no procesa los cancelados.
-- El envio simulado solo ocurre despues de una reclamacion exitosa.
+- El envio simulado solo ocurre despues de una reclamacion exitosa
+  y nunca marca ENVIADA (aislamiento aprobado 2026-11-20).
+- El envio real marca ENVIADA con una fila de log ENVIADA.
+- Fallo claro: reintento con backoff y FALLIDA terminal al tercero.
+- Ambiguo: reintento a +10 min y FALLIDA terminal al tercero.
+- 429: se respeta el retry_after exacto, sin tope.
+- Sin cuenta vinculada: no se reclama, no se envia, no se registra.
+- Un reintento pendiente sobrevive a un reinicio.
 - El scheduler se puede desactivar (lifespan) y arranca/parar limpio.
 """
 
@@ -37,22 +44,26 @@ from alembic.config import Config
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
+from telegram.error import BadRequest, RetryAfter, TimedOut
 
 from app.core.config import get_settings
 from app.main import create_app
+from app.models.logs import NotificationLog
 from app.models.medications import Medication, Treatment, TreatmentMedication
 from app.models.reminders import MedicationReminder
 from app.models.schedules import MedicationSchedule
+from app.models.telegram import TelegramAccount
 from app.models.users import User
 from app.repositories.reminder_repository import (
     claim_reminder,
     mark_sent,
 )
-from app.scheduler import ReminderScheduler, SimulatedSender
+from app.scheduler import ReminderScheduler, SimulatedSender, TelegramSender
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 TEST_DB = "dosisalerta_test"
 BOGOTA = "America/Bogota"
+CHAT_ID = 123456789
 
 
 def _utcnow() -> datetime:
@@ -126,6 +137,33 @@ def session_factory(test_engine):
     return _factory
 
 
+class FakeBot:
+    """Doble de telegram.Bot para las pruebas de integracion."""
+
+    def __init__(self, behavior: str = "ok", message_id: int = 101, retry_after: int = 120):
+        self.calls: list[dict] = []
+        self.behavior = behavior
+        self.message_id = message_id
+        self.retry_after = retry_after
+
+    async def send_message(self, *, chat_id, text, **kwargs):
+        self.calls.append({"chat_id": chat_id, "text": text})
+        if self.behavior == "ok":
+            return _FakeMessage(self.message_id)
+        if self.behavior == "bad_request":
+            raise BadRequest("Bad Request: chat not found")
+        if self.behavior == "timeout":
+            raise TimedOut("Timed out")
+        if self.behavior == "retry_after":
+            raise RetryAfter(self.retry_after)
+        raise AssertionError(f"comportamiento desconocido: {self.behavior}")
+
+
+class _FakeMessage:
+    def __init__(self, message_id: int | None):
+        self.message_id = message_id
+
+
 # ------------------------------------------------------------------
 # Siembra y limpieza
 # ------------------------------------------------------------------
@@ -135,11 +173,13 @@ def _unique_email(prefix: str = "sched") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}@example.com"
 
 
-async def _seed_chain(test_engine) -> dict:
+async def _seed_chain(test_engine, *, linked: bool = True) -> dict:
     """Usuario + medicamento + tratamiento + vinculo + horario.
 
     Devuelve los ids de la cadena. Se confirma para que las
     sesiones del scheduler (otras conexiones) vean las filas.
+    Con ``linked=True`` (por defecto) el usuario tiene una cuenta
+    de Telegram VINCULADA con ``chat_id``.
     """
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         user = User(
@@ -150,6 +190,14 @@ async def _seed_chain(test_engine) -> dict:
         )
         s.add(user)
         await s.flush()
+        if linked:
+            account = TelegramAccount(
+                user_id=user.id,
+                telegram_user_id=987654321,
+                chat_id=CHAT_ID,
+                status="VINCULADA",
+            )
+            s.add(account)
         med = Medication(user_id=user.id, name="Paracetamol")
         s.add(med)
         await s.flush()
@@ -185,18 +233,27 @@ async def _seed_chain(test_engine) -> dict:
 
 
 async def _seed_reminders(
-    test_engine, chain: dict, specs: list[tuple[datetime, str]]
+    test_engine, chain: dict, specs: list[tuple]
 ) -> list[int]:
-    """Crea recordatorios con (scheduled_at, status) dados; devuelve ids."""
+    """Crea recordatorios; devuelve ids.
+
+    Cada spec es ``(scheduled_at, status)`` o ``(scheduled_at,
+    status, next_attempt_at, attempt_count)``.
+    """
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         ids = []
-        for when, status in specs:
+        for spec in specs:
+            when, status = spec[0], spec[1]
+            next_attempt_at = spec[2] if len(spec) > 2 else None
+            attempt_count = spec[3] if len(spec) > 3 else 0
             row = MedicationReminder(
                 schedule_id=chain["schedule_id"],
                 treatment_medication_id=chain["link_id"],
                 user_id=chain["user_id"],
                 scheduled_at=when,
                 status=status,
+                next_attempt_at=next_attempt_at,
+                attempt_count=attempt_count,
             )
             s.add(row)
             await s.flush()
@@ -207,6 +264,9 @@ async def _seed_reminders(
 
 async def _cleanup_user(test_engine, user_id: int) -> None:
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        await s.execute(
+            delete(NotificationLog).where(NotificationLog.user_id == user_id)
+        )
         await s.execute(
             delete(MedicationReminder).where(
                 MedicationReminder.user_id == user_id
@@ -224,6 +284,9 @@ async def _cleanup_user(test_engine, user_id: int) -> None:
         )
         await s.execute(delete(Treatment).where(Treatment.user_id == user_id))
         await s.execute(delete(Medication).where(Medication.user_id == user_id))
+        await s.execute(
+            delete(TelegramAccount).where(TelegramAccount.user_id == user_id)
+        )
         await s.execute(delete(User).where(User.id == user_id))
         await s.commit()
 
@@ -236,6 +299,48 @@ async def _reminder_status(test_engine, reminder_id: int) -> str | None:
             )
         )
         return row.scalar_one_or_none()
+
+
+async def _reminder_row(test_engine, reminder_id: int) -> dict | None:
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        row = await s.execute(
+            select(
+                MedicationReminder.status,
+                MedicationReminder.next_attempt_at,
+                MedicationReminder.attempt_count,
+            ).where(MedicationReminder.id == reminder_id)
+        )
+        found = row.one_or_none()
+        if found is None:
+            return None
+        return {
+            "status": found[0],
+            "next_attempt_at": found[1],
+            "attempt_count": found[2],
+        }
+
+
+async def _log_rows(test_engine, reminder_id: int) -> list[dict]:
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        rows = await s.execute(
+            select(
+                NotificationLog.status,
+                NotificationLog.telegram_message_id,
+                NotificationLog.sent_at,
+                NotificationLog.error,
+            )
+            .where(NotificationLog.reminder_id == reminder_id)
+            .order_by(NotificationLog.attempted_at, NotificationLog.id)
+        )
+        return [
+            {
+                "status": r[0],
+                "telegram_message_id": r[1],
+                "sent_at": r[2],
+                "error": r[3],
+            }
+            for r in rows.all()
+        ]
 
 
 async def _set_status(test_engine, reminder_id: int, status: str) -> None:
@@ -487,10 +592,16 @@ async def test_simulated_send_only_after_successful_claim(
     assert claimed is not None
 
     sent = await scheduler.process_due(_utcnow())
-    assert sent == [second_id]
+    # El simulado no es una entrega real: no hay ids enviados,
+    # pero la entrega simulada solo ocurre tras la reclamacion.
+    assert sent == []
     assert [d["reminder_id"] for d in sender.deliveries] == [second_id]
     assert await _reminder_status(test_engine, first_id) == "ENVIANDO"
-    assert await _reminder_status(test_engine, second_id) == "ENVIADA"
+    # El segundo queda ENVIANDO (reclamado), no ENVIADA: el
+    # simulado nunca marca una entrega que no ocurrio.
+    assert await _reminder_status(test_engine, second_id) == "ENVIANDO"
+    assert await _log_rows(test_engine, first_id) == []
+    assert await _log_rows(test_engine, second_id) == []
 
 
 async def test_scheduler_processes_due_end_to_end(
@@ -514,20 +625,271 @@ async def test_scheduler_processes_due_end_to_end(
     await scheduler.start()
     try:
         # El bucle procesa los vencidos sin que nadie lo llame.
+        # Con el sender simulado quedan ENVIANDO (reclamados),
+        # nunca ENVIADA.
         for _ in range(20):
-            if await _reminder_status(test_engine, due_ids[0]) == "ENVIADA" and await _reminder_status(
+            if await _reminder_status(test_engine, due_ids[0]) == "ENVIANDO" and await _reminder_status(
                 test_engine, due_ids[1]
-            ) == "ENVIADA":
+            ) == "ENVIANDO":
                 break
             await asyncio.sleep(0.5)
-        assert await _reminder_status(test_engine, due_ids[0]) == "ENVIADA"
-        assert await _reminder_status(test_engine, due_ids[1]) == "ENVIADA"
+        assert await _reminder_status(test_engine, due_ids[0]) == "ENVIANDO"
+        assert await _reminder_status(test_engine, due_ids[1]) == "ENVIANDO"
         assert await _reminder_status(test_engine, future_id) == "PENDIENTE"
         assert {d["reminder_id"] for d in sender.deliveries} == set(due_ids[:2])
+        assert await _log_rows(test_engine, due_ids[0]) == []
         assert scheduler.job_for_id(future_id) is not None
     finally:
         await scheduler.stop()
     assert not scheduler.running
+
+
+# ------------------------------------------------------------------
+# Envio real y reintentos (Etapa 3)
+# ------------------------------------------------------------------
+
+
+def _telegram_scheduler(session_factory, bot, **kwargs):
+    return ReminderScheduler(
+        session_factory,
+        TelegramSender(bot),
+        clear_delays=(timedelta(seconds=2), timedelta(seconds=3)),
+        ambiguous_delay=timedelta(seconds=2),
+        **kwargs,
+    )
+
+
+async def test_telegram_send_end_to_end(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    (rid,) = await _seed_reminders(
+        test_engine, _chain, [(now - timedelta(seconds=5), "PENDIENTE")]
+    )
+    bot = FakeBot("ok", message_id=101)
+    scheduler = _telegram_scheduler(session_factory, bot)
+    await scheduler.load_pending(now)
+    assert len(scheduler) == 1
+
+    sent = await scheduler.process_due(_utcnow())
+    assert sent == [rid]
+    assert await _reminder_status(test_engine, rid) == "ENVIADA"
+    assert len(bot.calls) == 1
+    assert bot.calls[0]["chat_id"] == CHAT_ID
+    text = bot.calls[0]["text"]
+    assert "Paracetamol 500 mg" in text
+    assert "Prueba" in text
+    assert "YA LO TOMÉ" not in text
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 1
+    assert logs[0]["status"] == "ENVIADA"
+    assert logs[0]["telegram_message_id"] == 101
+    assert logs[0]["sent_at"] is not None
+    assert logs[0]["error"] is None
+
+
+async def test_clear_failure_retries_then_failed(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    (rid,) = await _seed_reminders(
+        test_engine, _chain, [(now - timedelta(seconds=10), "PENDIENTE")]
+    )
+    bot = FakeBot("bad_request")
+    scheduler = _telegram_scheduler(session_factory, bot)
+    await scheduler.load_pending(now)
+
+    # Intento 1: FALLIDA en el log, PENDIENTE con el reintento a +2 s.
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "PENDIENTE"
+    assert row["attempt_count"] == 1
+    assert row["next_attempt_at"] is not None
+    assert row["next_attempt_at"] > _utcnow()
+    assert row["next_attempt_at"] <= _utcnow() + timedelta(seconds=5)
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 1
+    assert logs[0]["status"] == "FALLIDA"
+    assert logs[0]["telegram_message_id"] is None
+    assert logs[0]["sent_at"] is None
+    assert "BadRequest" in (logs[0]["error"] or "")
+    assert len(bot.calls) == 1
+
+    # La puerta de next_attempt_at: no se recoge antes de su hora.
+    await scheduler.load_pending(_utcnow())
+    assert len(scheduler) == 0
+
+    # Intento 2, tras el backoff: reintento a +3 s.
+    await asyncio.sleep(2.5)
+    await scheduler.load_pending(_utcnow())
+    assert len(scheduler) == 1
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "PENDIENTE"
+    assert row["attempt_count"] == 2
+    assert len(await _log_rows(test_engine, rid)) == 2
+    assert len(bot.calls) == 2
+
+    # Intento 3: FALLIDA terminal, sin mas reintentos.
+    await asyncio.sleep(3.5)
+    await scheduler.load_pending(_utcnow())
+    assert len(scheduler) == 1
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "FALLIDA"
+    assert row["attempt_count"] == 3
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 3
+    assert all(log["status"] == "FALLIDA" for log in logs)
+    assert len(bot.calls) == 3
+
+    # Un FALLIDA no vuelve a la cola.
+    await scheduler.load_pending(_utcnow())
+    assert len(scheduler) == 0
+
+
+async def test_ambiguous_retries_then_failed(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    (rid,) = await _seed_reminders(
+        test_engine, _chain, [(now - timedelta(seconds=10), "PENDIENTE")]
+    )
+    bot = FakeBot("timeout")
+    scheduler = _telegram_scheduler(session_factory, bot)
+    await scheduler.load_pending(now)
+
+    # Intento 1: AMBIGUA en el log, PENDIENTE con reintento a +2 s.
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "PENDIENTE"
+    assert row["attempt_count"] == 1
+    assert row["next_attempt_at"] is not None
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 1
+    assert logs[0]["status"] == "AMBIGUA"
+    assert logs[0]["telegram_message_id"] is None
+    assert logs[0]["sent_at"] is None
+
+    # Intento 2, tras el backoff.
+    await asyncio.sleep(2.5)
+    await scheduler.load_pending(_utcnow())
+    assert await scheduler.process_due(_utcnow()) == []
+    assert (await _reminder_row(test_engine, rid))["attempt_count"] == 2
+    assert len(await _log_rows(test_engine, rid)) == 2
+
+    # Intento 3: FALLIDA terminal.
+    await asyncio.sleep(2.5)
+    await scheduler.load_pending(_utcnow())
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "FALLIDA"
+    assert row["attempt_count"] == 3
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 3
+    assert all(log["status"] == "AMBIGUA" for log in logs)
+    assert len(bot.calls) == 3
+
+
+async def test_retry_after_respected_exactly(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    (rid,) = await _seed_reminders(
+        test_engine, _chain, [(now - timedelta(seconds=10), "PENDIENTE")]
+    )
+    bot = FakeBot("retry_after", retry_after=120)
+    scheduler = _telegram_scheduler(session_factory, bot)
+    await scheduler.load_pending(now)
+    assert await scheduler.process_due(_utcnow()) == []
+    row = await _reminder_row(test_engine, rid)
+    assert row["status"] == "PENDIENTE"
+    assert row["attempt_count"] == 1
+    # El reintento es exactamente +120 s (sin tope).
+    assert row["next_attempt_at"] is not None
+    assert row["next_attempt_at"] > _utcnow() + timedelta(seconds=100)
+    assert row["next_attempt_at"] <= _utcnow() + timedelta(seconds=125)
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 1
+    assert logs[0]["status"] == "FALLIDA"
+    assert "RetryAfter" in (logs[0]["error"] or "")
+    assert len(bot.calls) == 1
+
+
+async def test_no_linked_account_skips_without_claim_or_log(
+    test_engine, session_factory
+) -> None:
+    chain = await _seed_chain(test_engine, linked=False)
+    try:
+        now = _utcnow()
+        (rid,) = await _seed_reminders(
+            test_engine, chain, [(now - timedelta(seconds=10), "PENDIENTE")]
+        )
+        bot = FakeBot("ok")
+        scheduler = _telegram_scheduler(session_factory, bot)
+        await scheduler.load_pending(now)
+        assert len(scheduler) == 1
+        assert await scheduler.process_due(_utcnow()) == []
+        assert bot.calls == []
+        row = await _reminder_row(test_engine, rid)
+        assert row["status"] == "PENDIENTE"
+        assert row["attempt_count"] == 0
+        assert row["next_attempt_at"] is None
+        assert await _log_rows(test_engine, rid) == []
+    finally:
+        await _cleanup_user(test_engine, chain["user_id"])
+
+
+async def test_retry_survives_restart(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    # Un reintento pendiente: PENDIENTE, con next_attempt_at ya
+    # vencido y un intento previo (como si el intento 1 hubiera
+    # fallado antes de un reinicio).
+    (rid,) = await _seed_reminders(
+        test_engine,
+        _chain,
+        [(now - timedelta(minutes=20), "PENDIENTE", now - timedelta(seconds=5), 1)],
+    )
+    bot = FakeBot("ok", message_id=202)
+    first = _telegram_scheduler(session_factory, bot)
+    await first.start()
+    try:
+        for _ in range(20):
+            if await _reminder_status(test_engine, rid) == "ENVIADA":
+                break
+            await asyncio.sleep(0.5)
+        assert await _reminder_status(test_engine, rid) == "ENVIADA"
+        logs = await _log_rows(test_engine, rid)
+        assert len(logs) == 1
+        assert logs[0]["telegram_message_id"] == 202
+    finally:
+        await first.stop()
+
+
+async def test_concurrent_schedulers_one_real_send(
+    test_engine, session_factory, _chain
+) -> None:
+    now = _utcnow()
+    (rid,) = await _seed_reminders(
+        test_engine, _chain, [(now - timedelta(seconds=10), "PENDIENTE")]
+    )
+    bot = FakeBot("ok", message_id=303)
+    first = _telegram_scheduler(session_factory, bot)
+    second = _telegram_scheduler(session_factory, bot)
+    await first.load_pending(now)
+    await second.load_pending(now)
+    sent_first, sent_second = await asyncio.gather(
+        first.process_due(_utcnow()), second.process_due(_utcnow())
+    )
+    assert sorted(sent_first + sent_second) == [rid]
+    assert len(bot.calls) == 1
+    assert await _reminder_status(test_engine, rid) == "ENVIADA"
+    logs = await _log_rows(test_engine, rid)
+    assert len(logs) == 1
+    assert logs[0]["status"] == "ENVIADA"
+    assert logs[0]["telegram_message_id"] == 303
 
 
 # ------------------------------------------------------------------
@@ -536,7 +898,11 @@ async def test_scheduler_processes_due_end_to_end(
 
 
 async def test_lifespan_starts_and_stops_scheduler(session_factory) -> None:
-    app = create_app(run_scheduler=True, session_factory=session_factory)
+    app = create_app(
+        run_scheduler=True,
+        session_factory=session_factory,
+        sender=SimulatedSender(),
+    )
     async with app.router.lifespan_context(app):
         scheduler = app.state.scheduler
         assert scheduler is not None
@@ -553,8 +919,19 @@ async def test_lifespan_disabled_by_default() -> None:
 
 async def test_lifespan_follows_settings_default() -> None:
     # Sin parametro: sigue settings.scheduler_enabled, que es False
-    # por defecto mientras el sender es simulado (Etapa 2).
+    # por defecto (Etapa 3: el scheduler no se enciende solo).
     assert get_settings().scheduler_enabled is False
     app = create_app()
+    async with app.router.lifespan_context(app):
+        assert app.state.scheduler is None
+
+
+async def test_lifespan_without_token_does_not_start_scheduler(
+    session_factory, monkeypatch
+) -> None:
+    # Sin token no hay envio real: el scheduler no arranca y la
+    # API sigue sirviendo. El simulado nunca se conecta aqui.
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "")
+    app = create_app(run_scheduler=True, session_factory=session_factory)
     async with app.router.lifespan_context(app):
         assert app.state.scheduler is None

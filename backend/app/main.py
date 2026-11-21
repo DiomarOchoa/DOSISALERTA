@@ -16,34 +16,57 @@ aislado, sin levantar un servidor real.
 
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import auth, health, medications, treatments
+from app.bot.config import BotConfig
 from app.core.config import get_settings
 from app.database import AsyncSessionLocal
-from app.scheduler import ReminderScheduler, SimulatedSender
+from app.scheduler import ReminderScheduler, Sender, TelegramSender
+
+logger = logging.getLogger(__name__)
+
+
+def _sender_from_config() -> Sender | None:
+    """El sender real si hay token de Telegram, o None.
+
+    Sin token no hay envio: el scheduler no arranca (el sender
+    simulado solo existe en las pruebas, nunca en el lifespan).
+    """
+    if not BotConfig.from_env().can_poll:
+        return None
+    return TelegramSender.from_config()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Arranque y apagado: el scheduler del motor (Fase 5, Etapa 2).
+    """Arranque y apagado: el scheduler del motor (Fase 5, Etapa 3).
 
     El scheduler corre solo si ``run_scheduler`` es True (o si
-    ``settings.scheduler_enabled`` lo enciende). Mientras el sender
-    es simulado (Etapa 2), esta apagado por defecto: encenderlo
-    marcaria recordatorios ENVIADA sin haber enviado nada real.
-    En la Etapa 3, con el envio real, se encendera por defecto.
+    ``settings.scheduler_enabled`` lo enciende). El sender es el
+    inyectado en ``create_app`` o, si no hay ninguno, el real
+    desde ``BotConfig``; sin token, el scheduler no arranca y la
+    API sigue sirviendo HTTP (queda registrado un aviso).
     """
     scheduler = None
     if app.state.run_scheduler:
-        scheduler = ReminderScheduler(
-            app.state.session_factory, SimulatedSender()
-        )
-        app.state.scheduler = scheduler
-        await scheduler.start()
+        sender = app.state.sender or _sender_from_config()
+        if sender is None:
+            logger.warning(
+                "Scheduler desactivado: no hay token de Telegram "
+                "configurado. La API sigue sirviendo HTTP."
+            )
+            app.state.scheduler = None
+        else:
+            scheduler = ReminderScheduler(
+                app.state.session_factory, sender
+            )
+            app.state.scheduler = scheduler
+            await scheduler.start()
     else:
         app.state.scheduler = None
     yield
@@ -53,16 +76,21 @@ async def lifespan(app: FastAPI):
 
 
 def create_app(
-    *, run_scheduler: bool | None = None, session_factory=None
+    *,
+    run_scheduler: bool | None = None,
+    session_factory=None,
+    sender: Sender | None = None,
 ) -> FastAPI:
     """Crea y configura la aplicacion FastAPI.
 
     ``run_scheduler`` enciende el scheduler del motor en el
     lifespan. Si es None, sigue ``settings.scheduler_enabled``
-    (False por defecto en la Etapa 2). ``session_factory`` es la
-    fabrica de sesiones del scheduler; por defecto, la de la
-    aplicacion (``AsyncSessionLocal``). Las pruebas pasan su
-    propia fabrica contra la base de pruebas.
+    (False por defecto). ``session_factory`` es la fabrica de
+    sesiones del scheduler; por defecto, la de la aplicacion
+    (``AsyncSessionLocal``). ``sender`` es el sender del
+    scheduler; si es None, el lifespan construye el real desde
+    ``BotConfig`` (o no arranca el scheduler si no hay token).
+    Las pruebas pasan su propia fabrica y su propio sender.
     """
     settings = get_settings()
     if run_scheduler is None:
@@ -84,6 +112,7 @@ def create_app(
     )
     app.state.run_scheduler = run_scheduler
     app.state.session_factory = session_factory or AsyncSessionLocal
+    app.state.sender = sender
 
     # CORS: solo el frontend local en desarrollo. En produccion, la
     # lista vendra de la variable CORS_ORIGINS, nunca de "*".

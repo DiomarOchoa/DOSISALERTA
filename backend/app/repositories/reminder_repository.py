@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -297,27 +297,110 @@ async def mark_sent(
     return result.scalar_one_or_none()
 
 
-
-
 async def list_pending(
-    session: AsyncSession, *, from_dt: datetime, limit: int = 500
+    session: AsyncSession, *, from_dt: datetime, now: datetime, limit: int = 500
 ) -> list[MedicationReminder]:
     """Recordatorios PENDIENTE listos para (re)cargar, ordenados.
 
-    Lo usa el scheduler para (re)cargar la cola (Fase 5, Etapa
-    2). El orden es el mismo de la cola: scheduled_at y despues
+    Lo usa el scheduler para (re)cargar la cola (Fase 5, Etapas
+    2-3). El orden es el mismo de la cola: scheduled_at y despues
     id. Se cargan los PENDIENTE con ``scheduled_at`` dentro de la
-    ventana [from_dt, ...) y sin un ``next_attempt_at`` futuro.
+    ventana [from_dt, ...) y sin un ``next_attempt_at`` futuro, o
+    con un ``next_attempt_at`` ya vencido (reintento pendiente).
+    Un reintento no se recoge antes de su hora.
     """
     stmt = (
         select(MedicationReminder)
         .where(
             MedicationReminder.status == "PENDIENTE",
-            MedicationReminder.next_attempt_at.is_(None),
-            MedicationReminder.scheduled_at >= from_dt,
+            or_(
+                and_(
+                    MedicationReminder.next_attempt_at.is_(None),
+                    MedicationReminder.scheduled_at >= from_dt,
+                ),
+                and_(
+                    MedicationReminder.next_attempt_at.is_not(None),
+                    MedicationReminder.next_attempt_at <= now,
+                ),
+            ),
         )
         .order_by(MedicationReminder.scheduled_at, MedicationReminder.id)
         .limit(limit)
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def get_for_sending(
+    session: AsyncSession, reminder_id: int
+) -> MedicationReminder | None:
+    """Recordatorio con horario, vinculo y medicamento (Fase 5, Etapa 3).
+
+    Lo usa el scheduler para construir el texto del aviso. Sin
+    estas relaciones, construirlo tocaria relaciones perezosas
+    fuera del contexto asincrono.
+    """
+    stmt = (
+        select(MedicationReminder)
+        .where(MedicationReminder.id == reminder_id)
+        .options(
+            selectinload(MedicationReminder.schedule),
+            selectinload(MedicationReminder.treatment_medication).selectinload(
+                TreatmentMedication.medication
+            ),
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def set_next_attempt(
+    session: AsyncSession,
+    reminder_id: int,
+    *,
+    attempt_id: UUID,
+    next_attempt_at: datetime,
+) -> MedicationReminder | None:
+    """Vuelve un recordatorio reclamado a PENDIENTE con su proximo intento.
+
+    Solo el reclamante puede hacerlo (el WHERE exige estado
+    ENVIANDO y el mismo ``current_attempt_id``). Es el reintento
+    de la Etapa 3: el cargador lo recogera cuando llegue
+    ``next_attempt_at``. Devuelve la fila o None. Quien llama
+    hace el commit.
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.status == "ENVIANDO",
+            MedicationReminder.current_attempt_id == attempt_id,
+        )
+        .values(status="PENDIENTE", next_attempt_at=next_attempt_at)
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def mark_failed(
+    session: AsyncSession, reminder_id: int, *, attempt_id: UUID
+) -> MedicationReminder | None:
+    """Marca FALLIDA un recordatorio reclamado, solo si el intento coincide.
+
+    FALLIDA es terminal: no hay vuelta a un envio nuevo del mismo
+    recordatorio (spec §3.4). Devuelve la fila o None. Quien
+    llama hace el commit.
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.status == "ENVIANDO",
+            MedicationReminder.current_attempt_id == attempt_id,
+        )
+        .values(status="FALLIDA")
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()

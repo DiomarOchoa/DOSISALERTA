@@ -1,4 +1,4 @@
-"""Scheduler del motor de recordatorios (Fase 5, Etapa 2, D16/D18/D19).
+"""Scheduler del motor de recordatorios (Fase 5, Etapas 2-3, D16/D18/D19).
 
 El scheduler es el bucle del motor: carga los recordatorios
 PENDIENTE desde PostgreSQL, los ordena en el ReminderHeap y,
@@ -25,6 +25,21 @@ Reglas (D16/D18/D19):
   confirmarse); un vencido fuera de ella no se carga: queda en
   la BD para que la Etapa 5 lo marque PERDIDA.
 
+Envio real (Etapa 3):
+
+- El chat se resuelve **antes** de reclamar: sin cuenta de
+  Telegram vinculada no hay aviso (spec §3.1), asi que no se
+  reclama, no se envia y no se registra nada.
+- Cada intento queda en ``notification_logs`` y el cambio de
+  estado del recordatorio se escribe **en la misma transaccion**:
+  o quedan los dos, o ninguno.
+- Un resultado simulado (solo en pruebas) no es una entrega
+  real: no escribe log ni marca ENVIADA; el recordatorio queda
+  ENVIANDO (reclamado).
+- Reintentos (``retry_policy``): fallo claro +1 min y +5 min,
+  ambiguo +10 min, 429 con el ``retry_after`` exacto de Telegram
+  (sin tope); maximo 3 intentos y el recordatorio pasa a FALLIDA.
+
 La espera es eficiente: el bucle duerme hasta el proximo
 recordatorio (o hasta la siguiente recarga, lo que llegue
 antes) y se despierta antes si ``notify()`` lo llama. No hay
@@ -37,15 +52,28 @@ import asyncio
 import logging
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.algorithms.reminder_heap import HeapJob, PriorityQueue, ReminderHeap
+from app.models.medications import Treatment
 from app.models.reminders import MedicationReminder
-from app.repositories import reminder_repository
-from app.scheduler.sender import Sender
+from app.models.users import User
+from app.repositories import (
+    notification_log_repository,
+    reminder_repository,
+    telegram_account_repository,
+)
+from app.scheduler.retry_policy import (
+    AMBIGUOUS_DELAY,
+    CLEAR_FAILURE_DELAYS,
+    decide,
+)
+from app.scheduler.sender import SendPayload, Sender
+from app.scheduler.telegram_sender import build_reminder_text
 
 __all__ = ["ReminderScheduler"]
 
@@ -61,6 +89,15 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+@dataclass
+class _Prepared:
+    """Recordatorio listo para enviar (chat resuelto, texto hecho)."""
+
+    reminder: MedicationReminder
+    chat_id: int
+    payload: SendPayload
+
+
 class ReminderScheduler:
     """Bucle del motor: cola en memoria + reclamacion atomica en BD."""
 
@@ -71,6 +108,8 @@ class ReminderScheduler:
         *,
         queue_factory: Callable[[], PriorityQueue] = ReminderHeap,
         reload_interval_seconds: float = 60.0,
+        clear_delays: tuple[timedelta, ...] = CLEAR_FAILURE_DELAYS,
+        ambiguous_delay: timedelta = AMBIGUOUS_DELAY,
     ) -> None:
         self._session_factory = session_factory
         self._sender = sender
@@ -78,6 +117,8 @@ class ReminderScheduler:
         self._jobs_by_id: dict[int, tuple[HeapJob, int]] = {}
         self._jobs_by_user: dict[int, set[int]] = {}
         self._reload_interval = reload_interval_seconds
+        self._clear_delays = clear_delays
+        self._ambiguous_delay = ambiguous_delay
         self._wake = asyncio.Event()
         self._stopped = True
         self._task: asyncio.Task | None = None
@@ -137,17 +178,19 @@ class ReminderScheduler:
         """(Re)carga los PENDIENTE desde la BD y los encola.
 
         Solo los PENDIENTE con ``scheduled_at`` dentro de la
-        ventana [ahora - gracia, ...): los ENVIADA, TOMADA,
-        POSPUESTA, PERDIDA, CANCELADA y FALLIDA no vuelven a la
-        cola, y los vencidos fuera de la gracia quedan en la BD
-        para la Etapa 5. Re-encolar un id ya en cola lo reemplaza
-        (semantica de ``push``), asi que recargar es seguro.
-        Devuelve cuantos se cargaron.
+        ventana [ahora - gracia, ...) y sin un ``next_attempt_at``
+        futuro (un reintento no se recoge antes de su hora), o con
+        un ``next_attempt_at`` ya vencido (reintento pendiente):
+        los ENVIADA, TOMADA, POSPUESTA, PERDIDA, CANCELADA y
+        FALLIDA no vuelven a la cola, y los vencidos fuera de la
+        gracia quedan en la BD para la Etapa 5. Re-encolar un id
+        ya en cola lo reemplaza (semantica de ``push``), asi que
+        recargar es seguro. Devuelve cuantos se cargaron.
         """
         from_dt = now - timedelta(minutes=GRACE_MINUTES)
         async with self._session_factory() as session:
             rows = await reminder_repository.list_pending(
-                session, from_dt=from_dt
+                session, from_dt=from_dt, now=now
             )
         count = 0
         for row in rows:
@@ -159,12 +202,13 @@ class ReminderScheduler:
         """Procesa los trabajos vencidos hasta ``now``.
 
         Por cada trabajo vencido: lo saca de la cola y de los
-        indices, lo reclama en la BD y, solo si la reclamacion
-        gana, lo envia. Si el envio simulado tiene exito, marca
-        ENVIADA (solo el reclamante puede: la marca exige el
-        mismo ``current_attempt_id``). Si el envio falla, el
-        recordatorio queda ENVIANDO y lo decide la reconciliacion
-        (Etapa 5). Devuelve los ids enviados.
+        indices, resuelve el chat (sin cuenta vinculada no hay
+        aviso: se suelta sin reclamar, sin enviar y sin registrar
+        nada), lo reclama en la BD y, solo si la reclamacion
+        gana, lo envia. El intento y el cambio de estado se
+        escriben en una sola transaccion. Un resultado simulado
+        no marca ENVIADA ni escribe log (el recordatorio queda
+        ENVIANDO). Devuelve los ids enviados de verdad.
         """
         sent: list[int] = []
         while True:
@@ -174,20 +218,22 @@ class ReminderScheduler:
             job = self._queue.pop()
             assert job is not None
             self._drop_from_indexes(job.reminder_id)
+            prepared = await self._prepare(job)
+            if prepared is None:
+                continue
             claimed = await self._claim(job)
             if claimed is None:
                 # Otro lo reclamo, o ya no esta PENDIENTE (cancelado,
                 # por ejemplo): no se envia nada.
                 continue
-            result = await self._sender.send(
-                reminder_id=job.reminder_id,
-                user_id=claimed.user_id,
-                scheduled_at=job.scheduled_at,
-            )
-            if not result.ok:
+            result = await self._sender.send(prepared.payload)
+            if result.simulated:
+                # Modo simulado (solo en pruebas): no hubo entrega
+                # real, asi que no se escribe log ni se marca
+                # ENVIADA. El recordatorio queda ENVIANDO.
                 continue
-            marked = await self._mark_sent(job, claimed)
-            if marked is not None:
+            await self._record_attempt(job, claimed, result)
+            if result.ok and result.telegram_message_id is not None:
                 sent.append(job.reminder_id)
 
     # -- trabajos (para el servicio de tratamientos, etapas despues) --
@@ -253,7 +299,53 @@ class ReminderScheduler:
             return None
         return max(0.0, (job.scheduled_at - now).total_seconds())
 
-    # -- reclamacion y marca (transacciones cortas) --------------------
+    # -- preparacion, reclamacion y registro --------------------------
+
+    async def _prepare(self, job: HeapJob) -> _Prepared | None:
+        """Resuelve el chat y construye el texto del aviso.
+
+        Devuelve None si el recordatorio ya no existe, si no hay
+        usuario, o si no hay cuenta de Telegram vinculada (en ese
+        caso no se reclama ni se envia nada: spec §3.1).
+        """
+        async with self._session_factory() as session:
+            reminder = await reminder_repository.get_for_sending(
+                session, job.reminder_id
+            )
+            if reminder is None:
+                return None
+            user = await session.get(User, reminder.user_id)
+            if user is None:
+                return None
+            chat_id = await telegram_account_repository.get_linked_chat_id(
+                session, reminder.user_id
+            )
+            if chat_id is None:
+                return None
+            link = reminder.treatment_medication
+            medication = link.medication
+            treatment = await session.get(Treatment, link.treatment_id)
+            title = treatment.title if treatment is not None else ""
+        text = build_reminder_text(
+            medication_name=medication.name,
+            dose_amount=link.dose_amount,
+            dose_unit=link.dose_unit,
+            concentration=medication.concentration,
+            treatment_title=title,
+            scheduled_at=reminder.scheduled_at,
+            user_timezone=user.timezone,
+        )
+        return _Prepared(
+            reminder=reminder,
+            chat_id=chat_id,
+            payload=SendPayload(
+                reminder_id=job.reminder_id,
+                user_id=reminder.user_id,
+                chat_id=chat_id,
+                text=text,
+                scheduled_at=job.scheduled_at,
+            ),
+        )
 
     async def _claim(self, job: HeapJob) -> MedicationReminder | None:
         async with self._session_factory() as session:
@@ -263,15 +355,66 @@ class ReminderScheduler:
             await session.commit()
         return claimed
 
-    async def _mark_sent(
-        self, job: HeapJob, claimed: MedicationReminder
-    ) -> MedicationReminder | None:
+    async def _record_attempt(self, job: HeapJob, claimed, result) -> None:
+        """Escribe el intento y el cambio de estado en una transaccion.
+
+        El log y el estado van juntos: o quedan los dos, o ninguno.
+        Solo el reclamante puede cambiar el estado (la marca exige
+        su ``current_attempt_id``); si la marca no afecta a ninguna
+        fila, se registra un aviso y el log ya quedo escrito.
+        """
+        at = _utcnow()
+        decision = decide(
+            result,
+            attempt_count=claimed.attempt_count,
+            now=at,
+            clear_delays=self._clear_delays,
+            ambiguous_delay=self._ambiguous_delay,
+        )
         assert claimed.current_attempt_id is not None
+        log_status = (
+            "ENVIADA"
+            if decision.action == "sent"
+            else ("AMBIGUA" if result.kind == "ambiguous" else "FALLIDA")
+        )
         async with self._session_factory() as session:
-            marked = await reminder_repository.mark_sent(
+            await notification_log_repository.create_log(
                 session,
-                job.reminder_id,
+                reminder_id=job.reminder_id,
+                user_id=claimed.user_id,
                 attempt_id=claimed.current_attempt_id,
+                status=log_status,
+                telegram_message_id=(
+                    result.telegram_message_id
+                    if decision.action == "sent"
+                    else None
+                ),
+                sent_at=at if decision.action == "sent" else None,
+                error=None if decision.action == "sent" else result.error,
             )
+            if decision.action == "sent":
+                marked = await reminder_repository.mark_sent(
+                    session,
+                    job.reminder_id,
+                    attempt_id=claimed.current_attempt_id,
+                )
+            elif decision.action == "retry":
+                assert decision.next_attempt_at is not None
+                marked = await reminder_repository.set_next_attempt(
+                    session,
+                    job.reminder_id,
+                    attempt_id=claimed.current_attempt_id,
+                    next_attempt_at=decision.next_attempt_at,
+                )
+            else:  # "failed"
+                marked = await reminder_repository.mark_failed(
+                    session,
+                    job.reminder_id,
+                    attempt_id=claimed.current_attempt_id,
+                )
             await session.commit()
-        return marked
+        if marked is None:
+            logger.warning(
+                "Scheduler: el recordatorio %s no cambio de estado tras el intento",
+                job.reminder_id,
+            )
