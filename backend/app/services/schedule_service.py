@@ -21,10 +21,10 @@ horas de hoy ya pasadas quedan fuera (son `< ahora`): ya no se
 crean recordatorios PENDIENTE en el pasado.
 
 **Idempotencia:** la UNIQUE parcial `(schedule_id, scheduled_at)`
-(`uq_reminders_schedule_time`, solo estados PENDIENTE, ENVIANDO y
-ENVIADA) lo garantiza; la insercion usa `INSERT ... ON CONFLICT
+(`uq_reminders_schedule_time`, estados PENDIENTE, ENVIANDO, ENVIADA
+y TOMADA) lo garantiza; la insercion usa `INSERT ... ON CONFLICT
 DO NOTHING`, asi que regenerar nunca duplica un recordatorio
-activo. Un hueco con una fila CANCELADA (u otra inactiva) si
+activo ni una franja TOMADA. Un hueco con una fila CANCELADA (u otra inactiva) si
 admite un PENDIENTE nuevo: por eso el resume crea recordatorios
 sin borrar el historial (decision B).
 """

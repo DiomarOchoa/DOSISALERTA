@@ -52,10 +52,10 @@ async def create_many(session: AsyncSession, rows: list[dict]) -> int:
 
     `INSERT ... ON CONFLICT DO NOTHING` sobre la UNIQUE parcial
     `(schedule_id, scheduled_at)` (`uq_reminders_schedule_time`,
-    solo estados activos): regenerar nunca duplica un
-    recordatorio activo, y un hueco con una fila CANCELADA (u
-    otra inactiva) si admite un PENDIENTE nuevo. Devuelve el
-    numero de filas insertadas (0 si `rows` esta vacio).
+    estados activos + TOMADA): regenerar nunca duplica un
+    recordatorio activo ni una franja TOMADA, y un hueco con una
+    fila CANCELADA (u otra inactiva) si admite un PENDIENTE nuevo.
+    Devuelve el numero de filas insertadas (0 si `rows` esta vacio).
     """
     if not rows:
         return 0
@@ -63,7 +63,7 @@ async def create_many(session: AsyncSession, rows: list[dict]) -> int:
     stmt = stmt.on_conflict_do_nothing(
         index_elements=["schedule_id", "scheduled_at"],
         index_where=MedicationReminder.status.in_(
-            ["PENDIENTE", "ENVIANDO", "ENVIADA"]
+            ["PENDIENTE", "ENVIANDO", "ENVIADA", "TOMADA"]
         ),
     )
     result = await session.execute(stmt)

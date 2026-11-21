@@ -597,6 +597,40 @@ async def test_topup_recreates_cancelled_slots_without_touching_history(
     await _cleanup_user(test_engine, chain["user_id"])
 
 
+async def test_topup_does_not_duplicate_taken_slot(
+    test_engine, session_factory
+) -> None:
+    """Una franja TOMADA no admite un PENDIENTE nuevo (I-10)."""
+    chain = await _seed_chain(test_engine)
+    # Una fila TOMADA en el hueco que el top-up generaría.
+    await _seed_rows(
+        test_engine,
+        chain,
+        [
+            {
+                "scheduled_at": datetime(2026, 11, 21, 13, 0, tzinfo=timezone.utc),
+                "status": "TOMADA",
+            },
+        ],
+    )
+    result = await run_topup(session_factory, now=T0)
+    # Solo se crean los huecos 22 y 23; el 21 ya está TOMADA.
+    assert result.reminders_created == 2
+    rows = await _reminder_rows(test_engine, chain["user_id"])
+    assert len(rows) == 3
+    by_status = {}
+    for scheduled_at, status in rows:
+        by_status.setdefault(status, []).append(scheduled_at)
+    assert by_status["TOMADA"] == [
+        datetime(2026, 11, 21, 13, 0, tzinfo=timezone.utc)
+    ]
+    assert by_status["PENDIENTE"] == [
+        datetime(2026, 11, 22, 13, 0, tzinfo=timezone.utc),
+        datetime(2026, 11, 23, 13, 0, tzinfo=timezone.utc),
+    ]
+    await _cleanup_user(test_engine, chain["user_id"])
+
+
 async def test_topup_leaves_existing_states_intact(
     test_engine, session_factory
 ) -> None:
