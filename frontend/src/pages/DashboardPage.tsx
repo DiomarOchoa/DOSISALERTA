@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { API_URL, healthUrl } from "../config";
 import { useAuth } from "../context/AuthContext";
+import { ApiError } from "../services/api";
+import {
+  findNextReminder,
+  listTreatments,
+  type Reminder,
+} from "../services/treatments";
+import { formatInZone } from "../utils/user";
 import {
   BellIcon,
   CalendarIcon,
@@ -10,10 +17,12 @@ import {
 } from "../components/icons";
 
 // Inicio (andamio de la Entrega 0, saludo con nombre en la
-// Entrega 1): saludo, comprobacion de salud y avance del
-// proyecto. La proxima dosis real llega con la Entrega 3
-// (GET /treatments y la toma mas proxima de `upcoming_reminders`);
-// sin tratamientos, la seccion lo dice con honestidad.
+// Entrega 1): saludo, proxima dosis con estado vacio honesto,
+// acciones rapidas, comprobacion de salud (logica de la Fase 1,
+// sin cambios) y avance del proyecto con los estados reales a
+// 20 nov 2026. La proxima dosis real llega con la Entrega 3:
+// GET /treatments y la toma mas proxima de `upcoming_reminders`;
+// si no hay, el mensaje honesto de siempre, sin calcular tomas.
 
 type HealthState =
   | { kind: "idle" }
@@ -21,15 +30,54 @@ type HealthState =
   | { kind: "ok"; version: string }
   | { kind: "error"; message: string };
 
+type NextDoseState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "found"; reminder: Reminder }
+  | { kind: "empty" }
+  | { kind: "error" };
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const timezone = user?.timezone ?? "America/Bogota";
   const [health, setHealth] = useState<HealthState>({ kind: "idle" });
+  const [nextDose, setNextDose] = useState<NextDoseState>({ kind: "idle" });
   const firstName = user?.name.trim().split(/\s+/)[0] ?? "";
   const today = new Date().toLocaleDateString("es-CO", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setNextDose({ kind: "loading" });
+    listTreatments()
+      .then((treatments) => {
+        if (cancelled) {
+          return;
+        }
+        const next = findNextReminder(treatments);
+        setNextDose(
+          next ? { kind: "found", reminder: next } : { kind: "empty" },
+        );
+      })
+      .catch((caught) => {
+        if (cancelled) {
+          return;
+        }
+        // Sin sesion valida no hay proxima dosis que mostrar; la
+        // pagina sigue funcionando (el 401 ya limpio los tokens).
+        if (caught instanceof ApiError && caught.status === 401) {
+          setNextDose({ kind: "empty" });
+        } else {
+          setNextDose({ kind: "error" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function checkBackend() {
     setHealth({ kind: "loading" });
@@ -81,11 +129,52 @@ export default function DashboardPage() {
 
       <section className="card next-dose">
         <p className="label">Próxima dosis</p>
-        <h2>Aún no tienes dosis programadas</h2>
-        <p>
-          Cuando tengas tratamientos con horarios, aquí aparecerá
-          tu próxima dosis con su hora y su medicamento.
-        </p>
+        {nextDose.kind === "loading" ? (
+          <>
+            <h2>Buscando tu próxima dosis…</h2>
+          </>
+        ) : nextDose.kind === "found" ? (
+          <>
+            <h2>
+              {nextDose.reminder.medication.name} ·{" "}
+              {nextDose.reminder.dose_amount}{" "}
+              {nextDose.reminder.dose_unit}
+            </h2>
+            <p>
+              {formatInZone(nextDose.reminder.scheduled_at, timezone)}
+              {" · "}
+              {nextDose.reminder.treatment.title}
+            </p>
+            <Link
+              to={`/tratamientos/${nextDose.reminder.treatment.id}`}
+              className="btn-light"
+            >
+              Ver tratamiento
+            </Link>
+          </>
+        ) : nextDose.kind === "error" ? (
+          <>
+            <h2>No se pudo cargar tu próxima dosis</h2>
+            <p>
+              Comprueba que el backend esté en línea y vuelve a
+              intentarlo desde Tratamientos.
+            </p>
+            <Link to="/tratamientos" className="btn-light">
+              Ver tratamientos
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2>Aún no tienes dosis programadas</h2>
+            <p>
+              Cuando tengas tratamientos con horarios, aquí aparecerá
+              tu próxima dosis con su hora y su medicamento.
+            </p>
+            <Link to="/tratamientos" className="btn-light">
+              Ver tratamientos
+            </Link>
+          </>
+        )}
       </section>
 
       <div className="quick-actions">
