@@ -1,14 +1,24 @@
-/* Estilos minimos de la Fase 1, con variables CSS modernas.
-   No hay framework CSS: la idea es que la pantalla inicial sea
-   legible y explicable sin depender de una libreria de diseno. */
+/* DosisAlerta: estilo claro, fresco y amable (Fase 8, Entrega 0).
+   Sistema visual adoptado del prototipo AppSalud del 18 nov:
+   fondo menta suave, tarjetas blancas muy redondeadas, acento
+   teal y navegacion inferior como en una app movil. Sin framework
+   CSS: variables propias y componentes simples. */
 
 :root {
-  --fondo: #f4f6f8;
-  --texto: #1a1a1a;
-  --tarjeta: #ffffff;
-  --acento: #0b6fa4;
-  --ok: #1a7a3a;
-  --error: #b3261e;
+  --fondo: #e9f7f3;
+  --fondo-degradado: linear-gradient(135deg, #d8f5ee 0%, #eefaf6 45%, #fdf3e7 100%);
+  --superficie: #ffffff;
+  --texto: #14332f;
+  --muted: #6b857f;
+  --acento: #0ea5a4;
+  --acento-oscuro: #0b8a89;
+  --acento-suave: #d9f3ee;
+  --borde: #dcebe7;
+  --ok: #1a9e6b;
+  --ok-fondo: #e3f6ec;
+  --aviso: #9a6a00;
+  --aviso-fondo: #fdf3d7;
+  --error: #c0392b;
 }
 
 * {
@@ -18,31 +28,38 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: var(--fondo);
+  background: var(--fondo-degradado);
+  background-attachment: fixed;
   color: var(--texto);
+  line-height: 1.5;
 }
 
-.container {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
 }
 
-.card {
-  background: var(--tarjeta);
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-top: 1rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+p {
+  margin: 0 0 0.75rem;
+}
+
+p:last-child {
+  margin-bottom: 0;
 }
 
 button {
   background: var(--acento);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  padding: 0.8rem 1.4rem;
+  font: inherit;
+  font-weight: 700;
   cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--acento-oscuro);
 }
 
 button:disabled {
@@ -56,4 +73,905 @@ button:disabled {
 
 .error {
   color: var(--error);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Contenedor principal: columna centrada estilo app movil. */
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem 1rem 110px;
+  min-height: 100vh;
+}
+
+/* Cabecera: marca y usuario. */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-right: 0.5rem;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+  box-shadow: 0 4px 12px rgba(20, 60, 50, 0.06);
+}
+
+.user-meta {
+  line-height: 1.25;
+}
+
+.user-meta .name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.user-meta .email {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.avatar-large {
+  width: 72px;
+  height: 72px;
+  font-size: 1.6rem;
+}
+
+.btn-ghost {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  color: var(--texto);
+  padding: 0.55rem 1rem;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--acento-suave);
+}
+
+.btn-light {
+  background: #fff;
+  color: var(--acento-oscuro);
+}
+
+.btn-light:hover:not(:disabled) {
+  background: #f0faf8;
+}
+
+/* Tarjetas. */
+
+.card {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 24px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  box-shadow: 0 8px 24px rgba(20, 60, 50, 0.07);
+}
+
+/* Saludo del inicio. */
+
+.greeting {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+
+/* Tarjeta de proxima dosis (degradado teal). */
+
+.next-dose {
+  background: linear-gradient(135deg, #14b8a6, #0b8a89);
+  color: #fff;
+  border: none;
+}
+
+.next-dose .label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 0.4rem;
+}
+
+.next-dose h2 {
+  color: #fff;
+}
+
+.next-dose p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Acciones rapidas. */
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.quick-action {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--texto);
+  box-shadow: 0 4px 12px rgba(20, 60, 50, 0.05);
+}
+
+.quick-action:hover:not(:disabled) {
+  background: var(--acento-suave);
+}
+
+.qa-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--acento-suave);
+  color: var(--acento-oscuro);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pagina de acceso (sin sesion): bienvenida y tarjeta. */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  gap: 1.25rem;
+}
+
+.welcome-mark {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #14b8a6, #0b8a89);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  font-weight: 800;
+  box-shadow: 0 12px 32px rgba(14, 164, 166, 0.35);
+}
+
+.welcome-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+}
+
+.welcome-title span {
+  color: var(--acento-oscuro);
+}
+
+.welcome-sub {
+  color: var(--muted);
+  text-align: center;
+  margin: 0;
+  max-width: 420px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  margin-top: 0;
+}
+
+.auth-foot {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Formularios de autenticacion (Fase 3 / Fase 7). */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field label {
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: #f4faf8;
+  color: var(--texto);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+  border-color: var(--acento);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--acento-suave);
+  border-radius: 999px;
+  padding: 0.25rem;
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 1 0 auto;
+  background: transparent;
+  color: var(--texto);
+  border: none;
+  padding: 0.6rem 0.5rem;
+  white-space: nowrap;
+}
+
+.tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.tab.active {
+  background: var(--acento);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(14, 164, 166, 0.3);
+}
+
+.tab.active:hover {
+  background: var(--acento-oscuro);
+}
+
+/* Lista de fases con su estado. */
+
+.phase-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.phase-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.phase-list li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.badge {
+  flex: none;
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge-done {
+  background: var(--ok-fondo);
+  color: var(--ok);
+}
+
+.badge-progress {
+  background: var(--aviso-fondo);
+  color: var(--aviso);
+}
+
+.badge-pending {
+  background: #eef2f1;
+  color: var(--muted);
+}
+
+/* Perfil. */
+
+.profile-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.profile-hero h2 {
+  margin: 0.5rem 0 0;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.profile-row .row-label {
+  font-weight: 600;
+}
+
+.profile-row .row-value {
+  color: var(--muted);
+  text-align: right;
+}
+
+.row-button {
+  width: 100%;
+  background: transparent;
+  color: var(--texto);
+  border: none;
+  border-radius: 0;
+  padding: 0.9rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.row-button:hover:not(:disabled) {
+  background: transparent;
+  color: var(--acento-oscuro);
+}
+
+/* Navegacion inferior. */
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--borde);
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+  z-index: 10;
+}
+
+.bottom-nav-inner {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.nav-item {
+  flex: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 16px;
+  padding: 0.55rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.nav-item:hover:not(.active) {
+  background: var(--acento-suave);
+}
+
+.nav-item.active {
+  color: var(--acento-oscuro);
+  background: var(--acento-suave);
+}
+
+/* Pie de pagina. */
+
+.site-footer {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 2rem;
+}
+
+/* Enlaces con estilo de boton (React Router Link/NavLink). */
+
+a.btn-light,
+a.btn-ghost {
+  display: inline-block;
+  text-decoration: none;
+}
+
+a.quick-action {
+  text-decoration: none;
+}
+
+a.tab {
+  text-decoration: none;
+}
+
+/* Pantallas estrechas. */
+
+@media (max-width: 480px) {
+  .user-meta {
+    display: none;
+  }
+
+  /* Acciones rápidas del Inicio: a 390 px las cuatro no caben con
+     el tamaño base (cada elemento exige su ancho mínimo y la
+     cuadrícula desborda ~29 px). Se les permite encoger, con menos
+     separación, menos relleno lateral y letra algo menor, para que
+     las cuatro etiquetas quepan en una fila sin recortarse. Solo
+     afecta a pantallas de 480 px o menos; el escritorio no cambia. */
+  .quick-actions {
+    gap: 0.5rem;
+  }
+
+  .quick-action {
+    min-width: 0;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.65rem;
+  }
+}
+
+/* Medicamentos (Entrega 2). */
+
+.field textarea {
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: #f4faf8;
+  color: var(--texto);
+  min-height: 90px;
+  resize: vertical;
+}
+
+.field textarea:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+  border-color: var(--acento);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--error);
+}
+
+.btn-primary {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.8rem 1.4rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--acento-oscuro);
+}
+
+.btn-danger {
+  background: var(--superficie);
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 0.55rem 1rem;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fdf0ee;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.page-head h2 {
+  margin: 0;
+}
+
+.filter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.search-input {
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: #f4faf8;
+  color: var(--texto);
+  width: 100%;
+}
+
+.search-input:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+  border-color: var(--acento);
+}
+
+.med-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.med-item {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 4px 12px rgba(20, 60, 50, 0.05);
+}
+
+.med-item a.med-link {
+  text-decoration: none;
+  color: var(--texto);
+  flex: 1;
+  min-width: 0;
+}
+
+.med-item a.med-link:hover .med-name {
+  color: var(--acento-oscuro);
+}
+
+.med-name {
+  font-weight: 700;
+  margin: 0;
+}
+
+.med-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0.15rem 0 0;
+}
+
+.confirm-box {
+  background: var(--aviso-fondo);
+  border: 1px solid #f0d9a0;
+  border-radius: 16px;
+  padding: 1rem;
+  margin-top: 0.75rem;
+}
+
+.confirm-box p {
+  margin: 0 0 0.75rem;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.success-box {
+  background: var(--ok-fondo);
+  border: 1px solid #bfe6cf;
+  color: var(--ok);
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+/* Tratamientos (Entrega 3). */
+
+.field-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.field-row > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-label {
+  font-weight: 600;
+}
+
+.med-block {
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 1rem;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #f4faf8;
+}
+
+.sched-block {
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 0.9rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--superficie);
+}
+
+.day-picker {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.day-picker legend {
+  font-weight: 600;
+  padding: 0;
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.day-chip {
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--superficie);
+}
+
+.day-chip input {
+  display: none;
+}
+
+.day-chip.active {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: #fff;
+}
+
+.time-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.time-row input {
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: #f4faf8;
+  color: var(--texto);
+}
+
+.warn-box {
+  background: var(--aviso-fondo);
+  border: 1px solid #f0d9a0;
+  border-radius: 16px;
+  padding: 1rem;
+  margin-top: 0.75rem;
+}
+
+.warn-box p {
+  margin: 0 0 0.75rem;
+}
+
+.warn-box p:last-child {
+  margin-bottom: 0;
+}
+
+.dose-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dose-item {
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dose-item p {
+  margin: 0;
+}
+
+.sched-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sched-chip {
+  background: var(--acento-suave);
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.upcoming-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--borde);
+  padding: 0.5rem 0;
+}
+
+.upcoming-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.upcoming-item p {
+  margin: 0;
+}
+
+
+
+/* Próximas tomas (Fase 8, Entrega 4). */
+
+.day-group {
+  margin-top: 1.25rem;
+}
+
+.day-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.upcoming-treatment-link {
+  color: var(--acento-oscuro);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.upcoming-treatment-link:hover {
+  text-decoration: underline;
+}
+
+/* Navegación inferior con cinco secciones (Entrega 4:
+   Recordatorios). Menos separación lateral, menos distancia entre
+   pestañas y letra algo menor para que las cinco etiquetas quepan
+   a 390 px dentro de su pestaña, sin tocarse ni recortarse. */
+
+.bottom-nav {
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+.bottom-nav-inner {
+  gap: 0.125rem;
+}
+
+.nav-item {
+  font-size: 0.62rem;
+  min-width: 0;
+}
+
+.nav-item span {
+  white-space: nowrap;
 }
