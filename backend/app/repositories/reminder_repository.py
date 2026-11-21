@@ -201,6 +201,35 @@ async def cancel_pending_for_treatment(
     return result.rowcount or 0
 
 
+async def cancel_pending_for_medication(
+    session: AsyncSession, medication_id: int, user_id: int, now: datetime
+) -> int:
+    """Cancela los recordatorios PENDIENTE y ENVIANDO futuros de
+    un medicamento (status -> CANCELADA).
+
+    Lo usa desactivar un medicamento (Fase A, I-3, opcion A): al
+    desactivar, sus recordatorios futuros se cancelan en la misma
+    transaccion, para que el paciente deje de recibir avisos de un
+    farmaco que ya no debe tomar. No toca TOMADA, POSPUESTA,
+    PERDIDA ni ENVIADA: el historial se conserva (diseno §4.6.4).
+    """
+    subquery = select(TreatmentMedication.id).where(
+        TreatmentMedication.medication_id == medication_id,
+        TreatmentMedication.user_id == user_id,
+    )
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.treatment_medication_id.in_(subquery),
+            MedicationReminder.status.in_(["PENDIENTE", "ENVIANDO"]),
+            MedicationReminder.scheduled_at >= now,
+        )
+        .values(status="CANCELADA")
+    )
+    result = await session.execute(stmt)
+    return result.rowcount or 0
+
+
 async def list_cancelled_for_schedule(
     session: AsyncSession, schedule_id: int, now: datetime
 ) -> list[MedicationReminder]:

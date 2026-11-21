@@ -39,7 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.medications import Treatment
 from app.models.schedules import MedicationSchedule
 from app.models.users import User
-from app.repositories import reminder_repository
+from app.repositories import reminder_repository, treatment_medication_repository
 
 # Horizonte vigente de generacion (decision del usuario, 2026-11-20).
 GENERATION_HORIZON_HOURS = 72
@@ -100,6 +100,13 @@ async def generate_reminders_for_schedule(
     de recordatorios insertados (0 si la ventana esta vacia o si
     ya existian todos).
     """
+    # Fase A, I-3: un medicamento desactivado no genera
+    # recordatorios. El vinculo se carga para conocer el medicamento.
+    link = await treatment_medication_repository.get_by_id(
+        session, schedule.treatment_medication_id, user_id=schedule.user_id
+    )
+    if link is None or link.medication is None or not link.medication.is_active:
+        return 0
     tz = ZoneInfo(user.timezone)
     current = now or datetime.now(timezone.utc)
     limit = current + timedelta(hours=horizon_hours)

@@ -47,6 +47,7 @@ from app.models.schedules import MedicationSchedule
 from app.models.users import User
 from app.repositories import reminder_repository, schedule_repository
 from app.scheduler.topup import run_topup
+from app.services import medication_service
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 TEST_DB = "dosisalerta_test"
@@ -213,6 +214,7 @@ async def _seed_chain(
         await s.commit()
         return {
             "user_id": user.id,
+            "medication_id": med.id,
             "schedule_id": schedule.id,
             "link_id": link.id,
             "treatment_id": treatment.id,
@@ -379,6 +381,59 @@ async def test_topup_skips_inactive_link_or_schedule(
     for chain in (chain_link, chain_sched):
         assert await _reminder_rows(test_engine, chain["user_id"]) == []
         await _cleanup_user(test_engine, chain["user_id"])
+
+
+async def test_topup_skips_inactive_medication(
+    test_engine, session_factory
+) -> None:
+    """El top-up no genera recordatorios de un medicamento inactivo (I-3)."""
+    chain = await _seed_chain(test_engine)
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        med = await s.get(Medication, chain["medication_id"])
+        assert med is not None
+        med.is_active = False
+        await s.commit()
+    result = await run_topup(session_factory, now=T0)
+    # El horario se enumera (la enumeración no filtra por medicamento),
+    # pero _topup_one lo salta: no se crea nada.
+    assert result.schedules_checked == 1
+    assert result.reminders_created == 0
+    assert await _reminder_rows(test_engine, chain["user_id"]) == []
+    await _cleanup_user(test_engine, chain["user_id"])
+
+
+async def test_deactivate_medication_cancels_future_reminders(
+    test_engine, session_factory
+) -> None:
+    """Desactivar un medicamento cancela sus futuros PENDIENTE/ENVIANDO (I-3)."""
+    chain = await _seed_chain(test_engine)
+    now = datetime.now(timezone.utc)
+    # Dos futuros (se cancelan) y uno pasado (se conserva: el
+    # historial no se toca y la reconciliacion lo marcara PERDIDA).
+    await _seed_rows(
+        test_engine,
+        chain,
+        [
+            {"scheduled_at": now + timedelta(hours=1), "status": "PENDIENTE"},
+            {"scheduled_at": now + timedelta(hours=2), "status": "ENVIANDO"},
+            {"scheduled_at": now - timedelta(hours=1), "status": "PENDIENTE"},
+        ],
+    )
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        actor = await s.get(User, chain["user_id"])
+        assert actor is not None
+        await medication_service.deactivate_medication(
+            s, actor=actor, medication_id=chain["medication_id"]
+        )
+    rows = await _reminder_rows(test_engine, chain["user_id"])
+    assert len(rows) == 3
+    cancelled = [r for r in rows if r[1] == "CANCELADA"]
+    pending = [r for r in rows if r[1] == "PENDIENTE"]
+    assert len(cancelled) == 2
+    assert len(pending) == 1
+    # El pasado sigue PENDIENTE.
+    assert pending[0][0] < now
+    await _cleanup_user(test_engine, chain["user_id"])
 
 
 async def test_topup_respects_end_dates(test_engine, session_factory) -> None:
