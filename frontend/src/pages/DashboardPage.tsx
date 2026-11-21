@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { API_URL, healthUrl } from "../config";
+import { useAuth } from "../context/AuthContext";
 import {
   BellIcon,
   CalendarIcon,
@@ -8,11 +9,11 @@ import {
   PillIcon,
 } from "../components/icons";
 
-// Inicio (andamio de la Entrega 0): saludo, comprobacion de salud
-// y avance del proyecto. La proxima dosis real llega con la
-// Entrega 3 (GET /treatments y la toma mas proxima de
-// `upcoming_reminders`); sin tratamientos, la seccion lo dice
-// con honestidad.
+// Inicio (andamio de la Entrega 0, saludo con nombre en la
+// Entrega 1): saludo, comprobacion de salud y avance del
+// proyecto. La proxima dosis real llega con la Entrega 3
+// (GET /treatments y la toma mas proxima de `upcoming_reminders`);
+// sin tratamientos, la seccion lo dice con honestidad.
 
 type HealthState =
   | { kind: "idle" }
@@ -21,7 +22,9 @@ type HealthState =
   | { kind: "error"; message: string };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [health, setHealth] = useState<HealthState>({ kind: "idle" });
+  const firstName = user?.name.trim().split(/\s+/)[0] ?? "";
   const today = new Date().toLocaleDateString("es-CO", {
     weekday: "long",
     day: "numeric",
@@ -69,7 +72,9 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <p className="greeting">Hola</p>
+      <p className="greeting">
+        {firstName ? `Hola, ${firstName}` : "Hola"}
+      </p>
       <p className="subtitle">
         {today}. Este es tu panel de DosisAlerta.
       </p>
