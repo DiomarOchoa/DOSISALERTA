@@ -126,6 +126,14 @@ class Settings(BaseModel):
     jwt_access_expiration_minutes: int = 60
     jwt_refresh_expiration_days: int = 7
 
+    # Scheduler del motor (Fase 5, Etapa 2). Apagado por defecto
+    # mientras el sender es simulado: encenderlo marcaria
+    # recordatorios ENVIADA sin haber enviado nada real. Se
+    # enciende con SCHEDULER_ENABLED=true (y se encendera por
+    # defecto en la Etapa 3, con el envio real).
+    scheduler_enabled: bool = os.getenv("SCHEDULER_ENABLED", "false").lower() in ("1", "true", "yes")
+
+
     def __init__(self, **data):
         """Sobrescribe los defectos con variables de entorno, si existen."""
         data.setdefault("host", _getenv("HOST", "127.0.0.1"))

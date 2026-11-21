@@ -10,11 +10,17 @@ tratamiento (seccion `upcoming_reminders` de D-1), la
 cancelacion de futuros para los cambios de estado y el borrado
 de PENDIENTE para la regeneracion. Las filas CANCELADA nunca
 se borran (decision B).
+
+La reclamacion atomica y el listado de pendientes llegan con
+la Fase 5 (``claim_reminder``, ``mark_sent``, ``list_pending``):
+el scheduler reclama un PENDIENTE y solo quien lo reclama puede
+enviarlo y marcarlo ENVIADA (D18).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -236,3 +242,82 @@ async def delete_pending_for_schedule(
     result = await session.execute(stmt)
     return result.rowcount or 0
 
+
+async def claim_reminder(
+    session: AsyncSession, reminder_id: int, *, attempt_id: UUID, now: datetime
+) -> MedicationReminder | None:
+    """Reclama un recordatorio PENDIENTE para enviarlo, de forma atomica (Fase 5, D18).
+
+    Un solo UPDATE con WHERE de estado y RETURNING: PostgreSQL lo
+    ejecuta como una operacion atomica, asi que de varias
+    reclamaciones concurrentes del mismo recordatorio solo una
+    puede ganar (las demas encuentran el estado ya en ENVIANDO y
+    obtienen 0 filas). Quien reclama es el unico que puede enviar
+    y marcar ENVIADA (con el mismo attempt_id). Devuelve la fila
+    reclamada o None. Quien llama hace el commit.
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.status == "PENDIENTE",
+        )
+        .values(
+            status="ENVIANDO",
+            current_attempt_id=attempt_id,
+            claimed_at=now,
+            attempt_count=MedicationReminder.attempt_count + 1,
+        )
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def mark_sent(
+    session: AsyncSession, reminder_id: int, *, attempt_id: UUID
+) -> MedicationReminder | None:
+    """Marca ENVIADA un recordatorio reclamado, solo si el intento coincide.
+
+    El WHERE exige estado ENVIANDO y el mismo ``current_attempt_id``
+    de la reclamacion: solo el reclamante puede marcarlo. Devuelve
+    la fila marcada o None. Quien llama hace el commit.
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.status == "ENVIANDO",
+            MedicationReminder.current_attempt_id == attempt_id,
+        )
+        .values(status="ENVIADA")
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+
+
+async def list_pending(
+    session: AsyncSession, *, from_dt: datetime, limit: int = 500
+) -> list[MedicationReminder]:
+    """Recordatorios PENDIENTE listos para (re)cargar, ordenados.
+
+    Lo usa el scheduler para (re)cargar la cola (Fase 5, Etapa
+    2). El orden es el mismo de la cola: scheduled_at y despues
+    id. Se cargan los PENDIENTE con ``scheduled_at`` dentro de la
+    ventana [from_dt, ...) y sin un ``next_attempt_at`` futuro.
+    """
+    stmt = (
+        select(MedicationReminder)
+        .where(
+            MedicationReminder.status == "PENDIENTE",
+            MedicationReminder.next_attempt_at.is_(None),
+            MedicationReminder.scheduled_at >= from_dt,
+        )
+        .order_by(MedicationReminder.scheduled_at, MedicationReminder.id)
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
