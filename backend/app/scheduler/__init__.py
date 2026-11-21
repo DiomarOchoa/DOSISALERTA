@@ -15,6 +15,7 @@ from app.scheduler.retry_policy import (
     RetryDecision,
     decide,
 )
+from app.scheduler.reconciliation import ReconcileResult, Reconciler
 from app.scheduler.scheduler import ReminderScheduler
 from app.scheduler.sender import (
     SendPayload,
@@ -26,6 +27,8 @@ from app.scheduler.telegram_sender import TelegramSender, build_reminder_text
 
 __all__ = [
     "ReminderScheduler",
+    "Reconciler",
+    "ReconcileResult",
     "SendPayload",
     "SendResult",
     "Sender",

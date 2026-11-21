@@ -22,11 +22,12 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy import and_, delete, exists, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.logs import NotificationLog
 from app.models.medications import TreatmentMedication
 from app.models.reminders import MedicationReminder
 
@@ -404,3 +405,211 @@ async def mark_failed(
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def transition_to_taken(
+    session: AsyncSession,
+    reminder_id: int,
+    user_id: int,
+    *,
+    from_statuses: tuple[str, ...],
+) -> MedicationReminder | None:
+    """Pasa un recordatorio a TOMADA, de forma atomica (Fase 5, Etapa 4).
+
+    Un solo UPDATE con WHERE de estado y RETURNING: si el estado
+    ya no esta en `from_statuses` (otra operacion gano la
+    carrera), devuelve None y no cambia nada. Solo el dueno
+    (WHERE de user_id). Incrementa `version` (bloqueo optimista).
+    Devuelve la fila tras el cambio o None. Quien llama hace el
+    commit (junto a la creacion de la toma, en la misma
+    transaccion).
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.user_id == user_id,
+            MedicationReminder.status.in_(from_statuses),
+        )
+        .values(status="TOMADA", version=MedicationReminder.version + 1)
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def transition_to_postponed(
+    session: AsyncSession,
+    reminder_id: int,
+    user_id: int,
+    *,
+    from_statuses: tuple[str, ...],
+) -> MedicationReminder | None:
+    """Pasa un recordatorio a POSPUESTA, de forma atomica (Fase 5, Etapa 4).
+
+    Igual que `transition_to_taken`: un solo UPDATE con WHERE de
+    estado y RETURNING; si el estado ya cambio, devuelve None y
+    no cambia nada. Devuelve la fila tras el cambio o None. Quien
+    llama hace el commit (junto a la creacion del hijo).
+    """
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id == reminder_id,
+            MedicationReminder.user_id == user_id,
+            MedicationReminder.status.in_(from_statuses),
+        )
+        .values(status="POSPUESTA", version=MedicationReminder.version + 1)
+        .returning(MedicationReminder)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def create_child(
+    session: AsyncSession,
+    *,
+    original: MedicationReminder,
+    scheduled_at: datetime,
+) -> MedicationReminder:
+    """Crea el recordatorio hijo de una posposicion (Fase 5, Etapa 4).
+
+    Hereda horario, vinculo y usuario del original; apunta a el
+    con `parent_reminder_id` y sube `postponed_count` en uno. El
+    indice unico parcial (`uq_reminders_schedule_time`) rechaza
+    el INSERT si ya hay un recordatorio activo en ese instante
+    para el horario: el servicio lo convierte en 409 con rollback
+    completo. Quien llama hace el commit.
+    """
+    child = MedicationReminder(
+        schedule_id=original.schedule_id,
+        treatment_medication_id=original.treatment_medication_id,
+        user_id=original.user_id,
+        scheduled_at=scheduled_at,
+        status="PENDIENTE",
+        parent_reminder_id=original.id,
+        postponed_count=original.postponed_count + 1,
+    )
+    session.add(child)
+    return child
+
+
+async def list_overdue(
+    session: AsyncSession, *, cutoff: datetime, limit: int = 500
+) -> list[MedicationReminder]:
+    """Recordatorios vencidos fuera de gracia, para la reconciliación.
+
+    Estados PENDIENTE, ENVIADA y ENVIANDO con ``scheduled_at``
+    anterior al corte (ahora - 30 min), ordenados por
+    ``scheduled_at`` e ``id``. Solo lectura; la marca es
+    `mark_perdida`. (Fase 5, Etapa 5).
+    """
+    stmt = (
+        select(MedicationReminder)
+        .where(
+            MedicationReminder.status.in_(["PENDIENTE", "ENVIADA", "ENVIANDO"]),
+            MedicationReminder.scheduled_at < cutoff,
+        )
+        .order_by(MedicationReminder.scheduled_at, MedicationReminder.id)
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def mark_perdida(
+    session: AsyncSession, *, cutoff: datetime, limit: int = 500
+) -> list[int]:
+    """Marca PERDIDA los vencidos fuera de gracia, en un solo UPDATE atómico.
+
+    Una subconsulta elige como máximo `limit` ids (los más
+    vencidos, por ``scheduled_at`` e ``id``) y el UPDATE exterior
+    vuelve a validar las condiciones: el límite se cumple dentro
+    de la operación atómica (precisión B) y una fila que cambió
+    de estado por una operación concurrente se salta (precisión
+    C, PostgreSQL revalúa el WHERE al escribir). TOMADA,
+    POSPUESTA, CANCELADA y FALLIDA no pueden coincidir con el
+    ``IN``. No crea tomas. Devuelve las ids marcadas. Quien
+    llama hace el commit. (Fase 5, Etapa 5).
+    """
+    subq = (
+        select(MedicationReminder.id)
+        .where(
+            MedicationReminder.status.in_(["PENDIENTE", "ENVIADA", "ENVIANDO"]),
+            MedicationReminder.scheduled_at < cutoff,
+        )
+        .order_by(MedicationReminder.scheduled_at, MedicationReminder.id)
+        .limit(limit)
+        .scalar_subquery()
+    )
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id.in_(subq),
+            MedicationReminder.status.in_(["PENDIENTE", "ENVIADA", "ENVIANDO"]),
+            MedicationReminder.scheduled_at < cutoff,
+        )
+        .values(status="PERDIDA", version=MedicationReminder.version + 1)
+        .returning(MedicationReminder.id)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def release_stale_sending(
+    session: AsyncSession,
+    *,
+    stale_cutoff: datetime,
+    grace_cutoff: datetime,
+    limit: int = 500,
+) -> list[int]:
+    """Libera ENVIANDO caídos (sin registro) devolviéndolos a PENDIENTE.
+
+    ENVIANDO con ``claimed_at`` anterior a `stale_cutoff` (ahora
+    - 5 min), sin log para su ``current_attempt_id`` y dentro de
+    gracia (``scheduled_at`` posterior a `grace_cutoff`). No se
+    exige ``next_attempt_at IS NULL``: una fila caída puede traer
+    un valor viejo de un ciclo anterior (la reclamación no lo
+    limpia) y ese valor no la descalifica; la liberación lo
+    limpia. Limpia ``current_attempt_id``, ``claimed_at`` y
+    ``next_attempt_at``; conserva ``attempt_count``. Igual que
+    `mark_perdida`: subconsulta con LIMIT y re-validación de
+    todas las condiciones en el UPDATE exterior (precisiones B
+    y C). Devuelve las ids liberadas. Quien llama hace el commit.
+    (Fase 5, Etapa 5).
+    """
+    no_log = ~exists().where(
+        NotificationLog.attempt_id == MedicationReminder.current_attempt_id
+    )
+    subq = (
+        select(MedicationReminder.id)
+        .where(
+            MedicationReminder.status == "ENVIANDO",
+            MedicationReminder.claimed_at < stale_cutoff,
+            MedicationReminder.scheduled_at >= grace_cutoff,
+            no_log,
+        )
+        .order_by(MedicationReminder.claimed_at, MedicationReminder.id)
+        .limit(limit)
+        .scalar_subquery()
+    )
+    stmt = (
+        update(MedicationReminder)
+        .where(
+            MedicationReminder.id.in_(subq),
+            MedicationReminder.status == "ENVIANDO",
+            MedicationReminder.claimed_at < stale_cutoff,
+            MedicationReminder.scheduled_at >= grace_cutoff,
+            no_log,
+        )
+        .values(
+            status="PENDIENTE",
+            current_attempt_id=None,
+            claimed_at=None,
+            next_attempt_at=None,
+            version=MedicationReminder.version + 1,
+        )
+        .returning(MedicationReminder.id)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

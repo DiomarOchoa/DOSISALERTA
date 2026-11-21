@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, health, medications, treatments
+from app.api.routers import auth, health, medications, reminders, treatments
 from app.bot.config import BotConfig
 from app.core.config import get_settings
 from app.database import AsyncSessionLocal
@@ -143,6 +143,10 @@ def create_app(
     # medicamentos, dosis y horarios, con maquina de estados y
     # generacion de recordatorios (diseno 4.6.3-4.6.5 y 4.7).
     app.include_router(treatments.router, prefix="/api/v1")
+
+    # Tomas (Fase 5, Etapa 4, RF11/RF12): confirmar y posponer
+    # recordatorios. Solo paciente; el servicio decide el 403.
+    app.include_router(reminders.router, prefix="/api/v1")
 
     return app
 

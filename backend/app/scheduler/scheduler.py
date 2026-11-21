@@ -22,8 +22,8 @@ Reglas (D16/D18/D19):
   unico envio, pero eso no se promete.
 - Ventana de gracia (30 min): un recordatorio vencido dentro de
   la gracia se carga y se envia (la dosis todavia puede
-  confirmarse); un vencido fuera de ella no se carga: queda en
-  la BD para que la Etapa 5 lo marque PERDIDA.
+  confirmarse); un vencido fuera de ella no se carga: el
+  reconciliador lo marca PERDIDA (Etapa 5).
 
 Envio real (Etapa 3):
 
@@ -39,6 +39,15 @@ Envio real (Etapa 3):
 - Reintentos (``retry_policy``): fallo claro +1 min y +5 min,
   ambiguo +10 min, 429 con el ``retry_after`` exacto de Telegram
   (sin tope); maximo 3 intentos y el recordatorio pasa a FALLIDA.
+
+Reconciliación (Etapa 5):
+
+- En cada recarga y al arrancar, el reconciliador marca PERDIDA
+  los vencidos fuera de la gracia y libera los ENVIANDO caídos
+  (reclamados hace más de 5 minutos sin registro) a PENDIENTE.
+  Los reintentos no los libera: vuelven a PENDIENTE con
+  ``next_attempt_at`` y el cargador los recoge cuando vence su
+  hora.
 
 La espera es eficiente: el bucle duerme hasta el proximo
 recordatorio (o hasta la siguiente recarga, lo que llegue
@@ -67,12 +76,13 @@ from app.repositories import (
     reminder_repository,
     telegram_account_repository,
 )
+from app.scheduler.reconciliation import Reconciler
 from app.scheduler.retry_policy import (
     AMBIGUOUS_DELAY,
     CLEAR_FAILURE_DELAYS,
     decide,
 )
-from app.scheduler.sender import SendPayload, Sender
+from app.scheduler.sender import SendPayload, Sender, SimulatedSender
 from app.scheduler.telegram_sender import build_reminder_text
 
 __all__ = ["ReminderScheduler"]
@@ -119,6 +129,11 @@ class ReminderScheduler:
         self._reload_interval = reload_interval_seconds
         self._clear_delays = clear_delays
         self._ambiguous_delay = ambiguous_delay
+        self._reconciler = Reconciler(
+            session_factory,
+            grace_minutes=GRACE_MINUTES,
+            simulated=isinstance(sender, SimulatedSender),
+        )
         self._wake = asyncio.Event()
         self._stopped = True
         self._task: asyncio.Task | None = None
@@ -152,6 +167,7 @@ class ReminderScheduler:
         if self._task is not None:
             return
         self._stopped = False
+        await self._reconcile(_utcnow())
         try:
             await self.load_pending(_utcnow())
         except Exception:
@@ -173,6 +189,22 @@ class ReminderScheduler:
         self._wake.set()
 
     # -- carga y proceso ----------------------------------------------
+
+    async def _reconcile(self, now: datetime) -> None:
+        """Una pasada de reconciliación + limpieza de la cola.
+
+        Nunca levanta una excepción (el reconciliador ya registra
+        cada regla por separado): un fallo aquí no detiene el
+        bucle. Los PERDIDA se sacan de la cola en memoria; si no
+        se hiciera, la reclamación seguiría protegiendo el envío.
+        """
+        try:
+            result = await self._reconciler.reconcile(now)
+        except Exception:
+            logger.exception("Scheduler: error en la reconciliación")
+            return
+        for reminder_id in result.perdida_ids:
+            self.remove_job(reminder_id)
 
     async def load_pending(self, now: datetime) -> int:
         """(Re)carga los PENDIENTE desde la BD y los encola.
@@ -288,6 +320,7 @@ class ReminderScheduler:
             except TimeoutError:
                 timed_out = True
             if timed_out and not self._stopped:
+                await self._reconcile(_utcnow())
                 try:
                     await self.load_pending(_utcnow())
                 except Exception:
