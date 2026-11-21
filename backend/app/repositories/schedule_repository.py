@@ -18,6 +18,7 @@ from datetime import date, time
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.medications import Treatment, TreatmentMedication
 from app.models.schedules import MedicationSchedule
 
 
@@ -95,3 +96,35 @@ def deactivate(
     """Desactivacion logica (`is_active=False`, sin commit)."""
     schedule.is_active = False
     return schedule
+
+
+async def list_active_for_topup(session: AsyncSession) -> list[int]:
+    """Ids de los horarios que el top-up debe revisar (Fase 5, Etapa 6).
+
+    Horario activo + vínculo activo + tratamiento ACTIVO. La
+    consulta solo enumera: el top-up recarga cada cadena y
+    revalida que siga activa antes de generar (entre la
+    enumeración y la generación el tratamiento pudo pausarse).
+    Las fechas de inicio/fin no se filtran aquí:
+    `generate_reminders_for_schedule` ya recorta la ventana por
+    ellas y devuelve 0 cuando no hay hueco. La FK compuesta
+    (treatment_medication_id, user_id) garantiza que el vínculo
+    es del mismo usuario que el horario.
+    """
+    stmt = (
+        select(MedicationSchedule.id)
+        .join(
+            TreatmentMedication,
+            TreatmentMedication.id
+            == MedicationSchedule.treatment_medication_id,
+        )
+        .join(Treatment, Treatment.id == TreatmentMedication.treatment_id)
+        .where(
+            MedicationSchedule.is_active.is_(True),
+            TreatmentMedication.is_active.is_(True),
+            Treatment.status == "ACTIVO",
+        )
+        .order_by(MedicationSchedule.id)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

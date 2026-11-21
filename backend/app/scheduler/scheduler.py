@@ -49,6 +49,14 @@ Reconciliación (Etapa 5):
   ``next_attempt_at`` y el cargador los recoge cuando vence su
   hora.
 
+Top-up (Etapa 6):
+
+- Al arrancar y cada 6 h, el top-up genera los recordatorios que
+  faltan en la ventana de 72 h (``generate_reminders_for_schedule``,
+  idempotente). El orden de cada pasada es reconciliar → top-up →
+  cargar, para que las filas nuevas entren en la cola en la misma
+  pasada. El top-up nunca borra ni toca estados existentes.
+
 La espera es eficiente: el bucle duerme hasta el proximo
 recordatorio (o hasta la siguiente recarga, lo que llegue
 antes) y se despierta antes si ``notify()`` lo llama. No hay
@@ -77,6 +85,7 @@ from app.repositories import (
     telegram_account_repository,
 )
 from app.scheduler.reconciliation import Reconciler
+from app.scheduler.topup import run_topup
 from app.scheduler.retry_policy import (
     AMBIGUOUS_DELAY,
     CLEAR_FAILURE_DELAYS,
@@ -93,6 +102,12 @@ logger = logging.getLogger(__name__)
 # minutos es PERDIDA (Etapa 5). Hasta entonces, el aviso todavia
 # tiene sentido y el scheduler lo envia.
 GRACE_MINUTES = 30
+
+# Intervalo del top-up (Etapa 6, fijo en código por decisión
+# del usuario): la ventana es de 72 h; una pasada cada 6 h
+# la mantiene llena sin escanear los horarios en cada
+# recarga (60 s).
+TOPUP_INTERVAL_SECONDS = 21_600.0
 
 
 def _utcnow() -> datetime:
@@ -120,6 +135,7 @@ class ReminderScheduler:
         reload_interval_seconds: float = 60.0,
         clear_delays: tuple[timedelta, ...] = CLEAR_FAILURE_DELAYS,
         ambiguous_delay: timedelta = AMBIGUOUS_DELAY,
+        topup_interval_seconds: float = TOPUP_INTERVAL_SECONDS,
     ) -> None:
         self._session_factory = session_factory
         self._sender = sender
@@ -129,6 +145,8 @@ class ReminderScheduler:
         self._reload_interval = reload_interval_seconds
         self._clear_delays = clear_delays
         self._ambiguous_delay = ambiguous_delay
+        self._topup_interval = topup_interval_seconds
+        self._last_topup: datetime | None = None
         self._reconciler = Reconciler(
             session_factory,
             grace_minutes=GRACE_MINUTES,
@@ -158,7 +176,9 @@ class ReminderScheduler:
     # -- ciclo de vida ------------------------------------------------
 
     async def start(self) -> None:
-        """Carga los PENDIENTE y arranca el bucle (idempotente).
+        """Reconcilia, ejecuta el top-up y carga los PENDIENTE.
+
+        Arranca el bucle (idempotente).
 
         Si la BD no responde en el arranque, se arranca con la
         cola vacia y la recarga periodica la llenara cuando la BD
@@ -168,6 +188,7 @@ class ReminderScheduler:
             return
         self._stopped = False
         await self._reconcile(_utcnow())
+        await self._topup(_utcnow())
         try:
             await self.load_pending(_utcnow())
         except Exception:
@@ -205,6 +226,29 @@ class ReminderScheduler:
             return
         for reminder_id in result.perdida_ids:
             self.remove_job(reminder_id)
+
+    async def _topup(self, now: datetime) -> None:
+        """Una pasada de top-up (nunca levanta una excepción).
+
+        Genera los recordatorios que faltan en la ventana de
+        72 h. Actualiza `_last_topup` solo si la pasada
+        terminó: si la enumeración falla, la próxima recarga
+        lo reintenta.
+        """
+        try:
+            await run_topup(self._session_factory, now=now)
+        except Exception:
+            logger.exception("Scheduler: error en el top-up")
+            return
+        self._last_topup = now
+
+    async def _topup_if_due(self, now: datetime) -> None:
+        """Top-up solo cuando toca (cada 6 h, no en cada recarga)."""
+        if self._last_topup is not None:
+            elapsed = (now - self._last_topup).total_seconds()
+            if elapsed < self._topup_interval:
+                return
+        await self._topup(now)
 
     async def load_pending(self, now: datetime) -> int:
         """(Re)carga los PENDIENTE desde la BD y los encola.
@@ -321,6 +365,7 @@ class ReminderScheduler:
                 timed_out = True
             if timed_out and not self._stopped:
                 await self._reconcile(_utcnow())
+                await self._topup_if_due(_utcnow())
                 try:
                     await self.load_pending(_utcnow())
                 except Exception:

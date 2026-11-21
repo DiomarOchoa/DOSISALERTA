@@ -123,7 +123,7 @@ Ejemplo: el usuario crea un tratamiento en la web.
 
 1. `TreatmentService.create` guarda tratamiento, vínculo con
    medicamentos y horarios, en una transacción.
-2. `ReminderGenerator` crea las ocurrencias de los próximos 7 días
+2. `ReminderGenerator` crea las ocurrencias de las próximas 72 horas
    (ver §7 y `MODELO_DATOS.md`).
 3. El scheduler, que ya está corriendo, carga esas ocurrencias en su
    cola de prioridad en el siguiente ciclo de recarga.
@@ -200,8 +200,13 @@ usaría la web, siempre la misma transacción, siempre la misma BD.
 ## 7. Motor de recordatorios (resumen; diseño completo en la Fase 5 del roadmap y en DECISIONES)
 
 - **Fuente de verdad:** la tabla `medication_reminders`.
-- **Generación:** ocurrencias para los próximos 7 días, idempotentes
+- **Generación:** ocurrencias para las próximas 72 horas, idempotentes
   por restricción única `(schedule_id, scheduled_at)`.
+- **Top-up (Etapa 6):** al arrancar y cada 6 h (intervalo fijo en
+  código), el top-up genera lo que falta en la ventana de 72 h con
+  `generate_reminders_for_schedule`, sin borrar ni tocar estados
+  existentes. Cada pasada es reconciliar → top-up → cargar, para
+  que las filas nuevas entren en la cola en la misma pasada.
 - **Orden:** cola de prioridad propia (`app/algorithms/ReminderHeap`,
   heap binario) ordenada por `scheduled_at` UTC; `heapq` como respaldo
   detrás de la misma interfaz.

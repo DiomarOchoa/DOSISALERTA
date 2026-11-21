@@ -268,7 +268,14 @@ dejar rastro.
   nunca con reenvío inmediato ni con una confirmación inventada.
   La API de Telegram no ofrece idempotencia ni verificación de
   envíos, así que la promesa es entrega al menos una vez y efecto
-  exactamente una vez, no envío exactamente una vez.
+  exactamente una vez, no envío exactamente una vez. La ventana de
+  generación es de 72 h y se mantiene con un top-up periódico: al
+  arrancar y cada 6 h (intervalo fijo en código), el scheduler
+  ejecuta `generate_reminders_for_schedule` por cada horario activo
+  (horario activo + vínculo activo + tratamiento ACTIVO); la
+  inserción es idempotente (UNIQUE parcial + `INSERT ... ON CONFLICT
+  DO NOTHING`) y nunca borra ni toca estados existentes; cada pasada
+  es reconciliar → top-up → cargar.
 - **Por qué:** sin reclamación, dos tareas o dos reinicios podrían
   enviar el mismo aviso. Sin borrado perezoso, cancelar obligaría a
   reconstruir la cola entera. Sin el estado `AMBIGUA`, un fallo de
@@ -276,7 +283,10 @@ dejar rastro.
   mentiras son peores que reconocer la ambigüedad.
 - **Verificación:** Fase 5 — doble reclamación en paralelo: solo una
   envía; respuesta perdida simulada queda `AMBIGUA` y se reconcilia;
-  confirmar dos veces crea una sola toma.
+  confirmar dos veces crea una sola toma. Top-up: la ventana de 72 h
+  se mantiene llena al avanzar el tiempo (pruebas con tiempo
+  controlado, 24 h y 72 h); dos pasadas crean 0 filas la segunda
+  vez; un horario con error no interrumpe la pasada.
 
 ### D19. Una sola instancia API en esta versión
 

@@ -206,7 +206,9 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   gracia; recuperación al arrancar por reconciliación
   (no reenvío ciego de `ENVIANDO` viejos, marcar `PERDIDA` fuera de
   gracia); ventana de gracia 30 min y reintentos con backoff (máx. 3
-  fallos claros, máx. 3 ambiguos).
+  fallos claros, máx. 3 ambiguos); top-up periódico de la ventana de
+  72 h (al arrancar y cada 6 h, con `generate_reminders_for_schedule`,
+  idempotente, sin borrar estados).
 - Archivos: `backend/app/scheduler/`, `backend/app/algorithms/`,
   `backend/app/services/reminder_service.py`.
 - Pruebas: heap contra `heapq` (propiedades: orden, inserción,
@@ -216,7 +218,9 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
   `PERDIDA`; fallo claro simulado termina `FALLIDA` tras 3 intentos
   y queda registrado; respuesta perdida simulada queda `AMBIGUA` y la
   reconciliación decide con un único reintento; confirmar dos veces
-  crea una sola toma.
+  crea una sola toma; top-up con tiempo controlado: la ventana se
+  mantiene llena a 24 h y 72 h, idempotente, sin tocar estados
+  existentes, con DST y con aislamiento de errores por horario.
 - Aceptación: **criterio duro corregido** — entrega al menos una vez
   y efecto exactamente una vez: en escenario normal el aviso se envía
   una vez con `telegram_message_id`; tras reinicio no se reenvían los

@@ -1,14 +1,17 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-18 — Fase 3 COMPLETADA, con commit
-`017538a` publicado y fusionado en `main`. Fases 1 y 2 COMPLETADAS
-Y PUBLICADAS.** Commits en la rama `main`: `2bc7ec8`
-(implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
-(auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
+Última actualización: **2026-11-21 — Fases 4 y 5 COMPLETADAS
+(sin commitear todavía).** Fase 4 publicada en `main` en
+`b5c27e6` (2026-11-20). Fase 5 (Etapas 1–6) implementada y
+verificada el 2026-11-21, pendiente de commit. Commits en la rama
+`main`: `2bc7ec8` (implementación Fase 1, 51 archivos, 2026-11-04),
+`77d0d5c` (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
 (documentación de cuidadores, auditoría y IA, 7 archivos,
-2026-11-11), `017538a` (Fase 3, 27 archivos, 2026-11-18) y `770a6c8` (docs, 3 archivos, 2026-11-18).
-HEAD: `770a6c8abe141916062a3fb9831def1f5a662f40`.
+2026-11-11), `017538a` (Fase 3, 27 archivos, 2026-11-18),
+`770a6c8` (docs, 3 archivos, 2026-11-18) y `b5c27e6` (Fase 4,
+17 archivos, 2026-11-20).
+HEAD: `b5c27e6174e86e7d0107ea130c0c9c19a3bfd6b9`.
 
 ## Fase actual
 
@@ -32,6 +35,26 @@ tras la corrección robusta del test `test_alembic_version_is_head`
 literal). `alembic autogenerate`
 vacío. Limitación documentada (§7.5 del plan): el access token
 sigue válido hasta su expiración tras el logout.
+
+**FASE 4: Medicamentos y tratamientos — COMPLETADA el 2026-11-20,
+publicada en `main` en `b5c27e6`.** Medicamentos verificados
+(125 pruebas) y tratamientos con vínculos y horarios (11 endpoints,
+169 pruebas, luego 173 tras la migración `bb68e39bf104`): historial
+de recordatorios `CANCELADA` preservado (decisión B) y ventana de
+generación de exactamente 72 h.
+
+**FASE 5: Motor de recordatorios — COMPLETADA el 2026-11-21
+(Etapas 1–6), sin commitear.** Heap propio + `heapq` de respaldo;
+scheduler con reclamación atómica; envío real por Telegram con
+reintentos y registro de intentos; `IntakeService` (confirmar y
+posponer 15/30/60 min); reconciliador (PERDIDA + liberación de
+ENVIANDO caídos); top-up periódico de la ventana de 72 h (al
+arrancar y cada 6 h, idempotente). Suite completa: 341 pasadas +
+1 fallo conocido (marcador de token en el `.env`). Sin envío vivo:
+el token sigue siendo un marcador y la prueba viva queda aplazada
+a la Fase 6 por decisión expresa de Diomar. Informes en
+`~/workspace/DosisAlerta/INFORME_FASE5_ETAPA*.md` e
+`INFORME_CIERRE_FASE5.md`.
 
 La Fase 1 quedó cerrada también en base de datos: PostgreSQL 17.11
 verificado funcionando en el contenedor `dosisalerta-postgres`

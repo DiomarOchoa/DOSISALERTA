@@ -24,11 +24,14 @@ from app.scheduler.sender import (
     SimulatedSender,
 )
 from app.scheduler.telegram_sender import TelegramSender, build_reminder_text
+from app.scheduler.topup import TopUpResult, run_topup
 
 __all__ = [
     "ReminderScheduler",
     "Reconciler",
     "ReconcileResult",
+    "TopUpResult",
+    "run_topup",
     "SendPayload",
     "SendResult",
     "Sender",

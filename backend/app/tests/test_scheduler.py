@@ -351,6 +351,23 @@ async def _set_status(test_engine, reminder_id: int, status: str) -> None:
         await s.commit()
 
 
+async def _deactivate_schedule(test_engine, schedule_id: int) -> None:
+    """Desactiva un horario para que el top-up no genere en él.
+
+    Lo usan las pruebas de carga que siembran recordatorios a
+    mano y arrancan el scheduler: sin esto, la pasada de
+    top-up al arrancar generaría los recordatorios de la
+    ventana y cambiaría el contenido de la cola que la prueba
+    quiere verificar. La carga y la reconciliación leen filas
+    de recordatorios, no horarios, así que no les afecta.
+    """
+    async with AsyncSession(test_engine, expire_on_commit=False) as s:
+        schedule = await s.get(MedicationSchedule, schedule_id)
+        assert schedule is not None
+        schedule.is_active = False
+        await s.commit()
+
+
 # ------------------------------------------------------------------
 # Reclamacion atomica (repositorio)
 # ------------------------------------------------------------------
@@ -478,6 +495,10 @@ async def test_pending_recovered_after_restart(
     )
     pending = pending_ids[:3]
 
+    # El top-up al arrancar generaría la ventana del horario;
+    # se desactiva para que la cola contenga solo lo sembrado.
+    await _deactivate_schedule(test_engine, _chain["schedule_id"])
+
     first = ReminderScheduler(session_factory, SimulatedSender())
     await first.start()
     try:
@@ -516,6 +537,7 @@ async def test_enviada_and_cancelled_not_loaded(
             (now + timedelta(hours=1), "PERDIDA"),
         ],
     )
+    await _deactivate_schedule(test_engine, _chain["schedule_id"])
     scheduler = ReminderScheduler(session_factory, SimulatedSender())
     await scheduler.start()
     try:
@@ -533,6 +555,7 @@ async def test_overdue_beyond_grace_not_loaded(
         _chain,
         [(now - timedelta(hours=2), "PENDIENTE")],
     )
+    await _deactivate_schedule(test_engine, _chain["schedule_id"])
     scheduler = ReminderScheduler(session_factory, SimulatedSender())
     await scheduler.start()
     try:
