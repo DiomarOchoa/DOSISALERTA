@@ -58,6 +58,18 @@ REMINDER_STATUSES = (
 # Origenes de una toma confirmada (MODELO_DATOS §3.7).
 INTAKE_SOURCES = ("WEB", "TELEGRAM")
 
+# Motivos de cancelacion (D-11, opcion A, aprobada 2026-11-21).
+# NULL = causa desconocida (fila anterior a la migracion).
+# Solo lo escriben las tres funciones cancel_pending_for_*
+# (ver repositories/reminder_repository.py).
+CANCEL_REASONS = (
+    "TREATMENT_CANCELLED",
+    "TREATMENT_PAUSED",
+    "TREATMENT_COMPLETED",
+    "MEDICATION_DEACTIVATED",
+    "LINK_REMOVED",
+)
+
 
 class MedicationReminder(Base):
     """Una toma concreta programada."""
@@ -79,6 +91,17 @@ class MedicationReminder(Base):
             "status IN ('PENDIENTE', 'ENVIANDO', 'ENVIADA', 'TOMADA',"
             " 'POSPUESTA', 'PERDIDA', 'CANCELADA', 'FALLIDA')",
             name="ck_reminders_status",
+        ),
+        CheckConstraint(
+            "cancel_reason IS NULL OR cancel_reason IN "
+            "('TREATMENT_CANCELLED', 'TREATMENT_PAUSED', "
+            "'TREATMENT_COMPLETED', 'MEDICATION_DEACTIVATED', "
+            "'LINK_REMOVED')",
+            name="ck_reminders_cancel_reason",
+        ),
+        CheckConstraint(
+            "cancel_reason IS NULL OR status = 'CANCELADA'",
+            name="ck_reminders_cancel_reason_status",
         ),
         Index("ix_reminders_user_scheduled", "user_id", "scheduled_at"),
         Index(
@@ -115,6 +138,9 @@ class MedicationReminder(Base):
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="PENDIENTE"
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(
+        String(30), nullable=True
     )
     parent_reminder_id: Mapped[int | None] = mapped_column(
         BigInteger,
