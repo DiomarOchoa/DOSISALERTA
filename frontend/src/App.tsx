@@ -1,103 +1,69 @@
-import { useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { AppLayout, PublicLayout } from "./components/Layout";
+import DashboardPage from "./pages/DashboardPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import MedicationsPage from "./pages/MedicationsPage";
+import MedicationCreatePage from "./pages/MedicationCreatePage";
+import MedicationDetailPage from "./pages/MedicationDetailPage";
+import TreatmentsPage from "./pages/TreatmentsPage";
+import TreatmentCreatePage from "./pages/TreatmentCreatePage";
+import TreatmentDetailPage from "./pages/TreatmentDetailPage";
+import RemindersPage from "./pages/RemindersPage";
+import HistoryPage from "./pages/HistoryPage";
+import StatsPage from "./pages/StatsPage";
+import ProfilePage from "./pages/ProfilePage";
+import NotFoundPage from "./pages/NotFoundPage";
 
-// URL base de la API desde variables de entorno de Vite.
-// En desarrollo se lee de frontend/.env (copiado de .env.example):
-//   VITE_API_URL=http://localhost:8000/api/v1
-// Si no hay .env, se usa el valor de desarrollo local.
-const API_URL =
-  import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
-
-// El endpoint de salud versionado vive en <API_URL>/health cuando
-// API_URL ya termina en /api/v1; si alguien configura otra base,
-// se construye /api/v1/health a partir de ella.
-function healthUrl(apiUrl: string): string {
-  const base = apiUrl.replace(/\/$/, "");
-  if (base.endsWith("/api/v1")) {
-    return `${base}/health`;
-  }
-  return `${base}/api/v1/health`;
-}
-
-type HealthState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ok"; version: string }
-  | { kind: "error"; message: string };
-
+// Estructura de rutas de la Fase 8 (Entrega 2: medicamentos).
+// Las rutas publicas (/login, /registro) estan abiertas; todas las
+// demas pasan por ProtectedRoute, que redirige a /login sin sesion.
+// Las paginas sin implementar siguen siendo marcadores honestos
+// ("llega en la Entrega N"), sin llamadas a la API salvo la
+// comprobacion de salud del Inicio.
 export default function App() {
-  const [health, setHealth] = useState<HealthState>({ kind: "idle" });
-
-  async function checkBackend() {
-    setHealth({ kind: "loading" });
-    try {
-      const response = await fetch(healthUrl(API_URL));
-      if (!response.ok) {
-        setHealth({
-          kind: "error",
-          message: `El backend respondio HTTP ${response.status}.`,
-        });
-        return;
-      }
-      const data: unknown = await response.json();
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        "status" in data &&
-        (data as { status: unknown }).status === "ok"
-      ) {
-        const version =
-          "version" in data && typeof (data as { version: unknown }).version === "string"
-            ? (data as { version: string }).version
-            : "desconocida";
-        setHealth({ kind: "ok", version });
-      } else {
-        setHealth({ kind: "error", message: "Respuesta inesperada del backend." });
-      }
-    } catch {
-      // No se muestra el detalle tecnico del error de red: el mensaje
-      // util para el usuario es que el backend no esta levantado.
-      setHealth({
-        kind: "error",
-        message:
-          "No se pudo contactar al backend. Comprueba que esta corriendo en el puerto 8000.",
-      });
-    }
-  }
-
   return (
-    <main className="container">
-      <h1>DosisAlerta</h1>
-      <p>
-        Gestion y seguimiento de tratamientos medicos. Esta es la
-        pantalla inicial de la Fase 1: todavia no hay inicio de sesion,
-        medicamentos ni tratamientos. Esos modulos llegan en fases
-        posteriores.
-      </p>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/registro" element={<RegisterPage />} />
+          </Route>
 
-      <section className="card">
-        <h2>Estado del backend</h2>
-        <p>
-          API configurada: <code>{API_URL}</code>
-        </p>
-        <button type="button" onClick={checkBackend} disabled={health.kind === "loading"}>
-          {health.kind === "loading" ? "Comprobando..." : "Comprobar backend"}
-        </button>
-        {health.kind === "ok" && (
-          <p className="ok">Backend en linea (version {health.version}).</p>
-        )}
-        {health.kind === "error" && <p className="error">{health.message}</p>}
-      </section>
-
-      <section className="card">
-        <h2>Que viene despues</h2>
-        <ul>
-          <li>Fase 2: modelos y base de datos PostgreSQL.</li>
-          <li>Fase 3: registro e inicio de sesion.</li>
-          <li>Fase 4: medicamentos, tratamientos y horarios.</li>
-          <li>Fase 5: motor de recordatorios.</li>
-          <li>Fase 6: bot de Telegram.</li>
-        </ul>
-      </section>
-    </main>
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<Navigate to="/inicio" replace />} />
+              <Route path="/inicio" element={<DashboardPage />} />
+              <Route path="/medicamentos" element={<MedicationsPage />} />
+              <Route
+                path="/medicamentos/nuevo"
+                element={<MedicationCreatePage />}
+              />
+              <Route
+                path="/medicamentos/:id"
+                element={<MedicationDetailPage />}
+              />
+              <Route path="/tratamientos" element={<TreatmentsPage />} />
+              <Route
+                path="/tratamientos/nuevo"
+                element={<TreatmentCreatePage />}
+              />
+              <Route
+                path="/tratamientos/:id"
+                element={<TreatmentDetailPage />}
+              />
+              <Route path="/recordatorios" element={<RemindersPage />} />
+              <Route path="/historial" element={<HistoryPage />} />
+              <Route path="/estadisticas" element={<StatsPage />} />
+              <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
