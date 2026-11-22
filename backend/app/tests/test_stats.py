@@ -391,6 +391,24 @@ def _local(day: date, hour: int = 8, minute: int = 0) -> datetime:
     )
 
 
+def _future_within_today() -> datetime:
+    """Un instante futuro dentro de hoy (Bogota), sin cruzar a mañana.
+
+    La mitad del tiempo que queda hasta la medianoche: siempre es
+    futuro y siempre cae dentro del periodo por defecto de 30 dias
+    (que termina mañana a las 00:00 Bogota), a cualquier hora del
+    dia. Lo usan S-25 y S-26 para que el PENDIENTE futuro no quede
+    fuera del periodo cuando la prueba corre despues de las 22:00
+    (entonces `ahora + 2 h` cae pasada la medianoche).
+    """
+    now = _utcnow()
+    tomorrow = datetime.now(_BOGOTA_TZ).date() + timedelta(days=1)
+    midnight = datetime.combine(tomorrow, time(0, 0), tzinfo=_BOGOTA_TZ).astimezone(
+        timezone.utc
+    )
+    return now + (midnight - now) / 2
+
+
 async def _seed_intake(
     session, reminder_id: int, user_id: int, taken_at: datetime, source: str = "WEB"
 ) -> int:
@@ -1659,7 +1677,7 @@ async def test_s25_cancelled_by_medication_deactivation(client, session) -> None
     """S-25: cancelada por desactivación del medicamento (I-3)."""
     uid, h, chain = await _setup(client, session)
     when1 = _utcnow() - timedelta(hours=2)
-    when2 = _utcnow() + timedelta(hours=2)
+    when2 = _future_within_today()
     await _seed_taken(session, chain, when1, when1 + timedelta(minutes=10))
     await _seed_reminder(session, chain, when2, "PENDIENTE")
     await _deactivate_medication(client, h, chain["medication_id"])
@@ -1687,7 +1705,7 @@ async def test_s26_cancelled_by_treatment_pause(client, session) -> None:
     """S-26: cancelada por pausa del tratamiento."""
     uid, h, chain = await _setup(client, session)
     when1 = _utcnow() - timedelta(hours=2)
-    when2 = _utcnow() + timedelta(hours=2)
+    when2 = _future_within_today()
     await _seed_taken(session, chain, when1, when1 + timedelta(minutes=10))
     await _seed_reminder(session, chain, when2, "PENDIENTE")
     await _pause(client, h, chain["treatment_id"])
