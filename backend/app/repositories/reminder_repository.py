@@ -29,7 +29,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.logs import NotificationLog
 from app.models.medications import TreatmentMedication
-from app.models.reminders import MedicationReminder
+from app.models.reminders import CANCEL_REASONS, MedicationReminder
 
 
 def _with_relations(stmt):
@@ -155,7 +155,7 @@ async def list_upcoming_for_treatment(
 
 
 async def cancel_pending_for_schedule(
-    session: AsyncSession, schedule_id: int, now: datetime
+    session: AsyncSession, schedule_id: int, now: datetime, reason: str
 ) -> int:
     """Cancela los recordatorios PENDIENTE y ENVIANDO futuros de
     un horario (status -> CANCELADA).
@@ -163,7 +163,14 @@ async def cancel_pending_for_schedule(
     Futuro = `scheduled_at >= now`. No toca TOMADA, POSPUESTA,
     PERDIDA, ENVIADA ni sus intakes: el historial se conserva
     (diseno §4.6.4).
+
+    D-11: `reason` es obligatorio y se valida contra
+    `CANCEL_REASONS`; queda registrado en `cancel_reason`.
     """
+    if reason not in CANCEL_REASONS:
+        raise ValueError(
+            f"reason debe ser uno de {CANCEL_REASONS}, no {reason!r}"
+        )
     stmt = (
         update(MedicationReminder)
         .where(
@@ -171,20 +178,27 @@ async def cancel_pending_for_schedule(
             MedicationReminder.status.in_(["PENDIENTE", "ENVIANDO"]),
             MedicationReminder.scheduled_at >= now,
         )
-        .values(status="CANCELADA")
+        .values(status="CANCELADA", cancel_reason=reason)
     )
     result = await session.execute(stmt)
     return result.rowcount or 0
 
 
 async def cancel_pending_for_treatment(
-    session: AsyncSession, treatment_id: int, now: datetime
+    session: AsyncSession, treatment_id: int, now: datetime, reason: str
 ) -> int:
     """Cancela los recordatorios PENDIENTE y ENVIANDO futuros de
     todo un tratamiento (status -> CANCELADA).
 
     Lo usan pausar, cancelar y completar (diseno §4.6.4).
+
+    D-11: `reason` es obligatorio y se valida contra
+    `CANCEL_REASONS`; queda registrado en `cancel_reason`.
     """
+    if reason not in CANCEL_REASONS:
+        raise ValueError(
+            f"reason debe ser uno de {CANCEL_REASONS}, no {reason!r}"
+        )
     subquery = select(TreatmentMedication.id).where(
         TreatmentMedication.treatment_id == treatment_id
     )
@@ -195,14 +209,14 @@ async def cancel_pending_for_treatment(
             MedicationReminder.status.in_(["PENDIENTE", "ENVIANDO"]),
             MedicationReminder.scheduled_at >= now,
         )
-        .values(status="CANCELADA")
+        .values(status="CANCELADA", cancel_reason=reason)
     )
     result = await session.execute(stmt)
     return result.rowcount or 0
 
 
 async def cancel_pending_for_medication(
-    session: AsyncSession, medication_id: int, user_id: int, now: datetime
+    session: AsyncSession, medication_id: int, user_id: int, now: datetime, reason: str
 ) -> int:
     """Cancela los recordatorios PENDIENTE y ENVIANDO futuros de
     un medicamento (status -> CANCELADA).
@@ -212,7 +226,14 @@ async def cancel_pending_for_medication(
     transaccion, para que el paciente deje de recibir avisos de un
     farmaco que ya no debe tomar. No toca TOMADA, POSPUESTA,
     PERDIDA ni ENVIADA: el historial se conserva (diseno §4.6.4).
+
+    D-11: `reason` es obligatorio y se valida contra
+    `CANCEL_REASONS`; queda registrado en `cancel_reason`.
     """
+    if reason not in CANCEL_REASONS:
+        raise ValueError(
+            f"reason debe ser uno de {CANCEL_REASONS}, no {reason!r}"
+        )
     subquery = select(TreatmentMedication.id).where(
         TreatmentMedication.medication_id == medication_id,
         TreatmentMedication.user_id == user_id,
@@ -224,7 +245,7 @@ async def cancel_pending_for_medication(
             MedicationReminder.status.in_(["PENDIENTE", "ENVIANDO"]),
             MedicationReminder.scheduled_at >= now,
         )
-        .values(status="CANCELADA")
+        .values(status="CANCELADA", cancel_reason=reason)
     )
     result = await session.execute(stmt)
     return result.rowcount or 0

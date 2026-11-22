@@ -335,11 +335,13 @@ async def deactivate_medication(
         # recordatorios PENDIENTE/ENVIANDO en la misma transaccion,
         # para que el paciente deje de recibir avisos de un farmaco
         # que ya no debe tomar. El historial no se toca.
+        # D-11: el motivo es la desactivacion del medicamento.
         await reminder_repository.cancel_pending_for_medication(
             session,
             medication.id,
             effective_user_id,
             datetime.now(timezone.utc),
+            "MEDICATION_DEACTIVATED",
         )
         if _is_caregiver(actor, effective_user_id):
             caregiver_access.audit_action(

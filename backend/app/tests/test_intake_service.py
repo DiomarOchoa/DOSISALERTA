@@ -206,6 +206,7 @@ async def _seed_reminder(
     *,
     parent_id: int | None = None,
     postponed_count: int = 0,
+    cancel_reason: str | None = None,
 ) -> int:
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         row = MedicationReminder(
@@ -214,6 +215,7 @@ async def _seed_reminder(
             user_id=chain["user_id"],
             scheduled_at=when,
             status=status,
+            cancel_reason=cancel_reason,
             parent_reminder_id=parent_id,
             postponed_count=postponed_count,
         )
@@ -441,6 +443,7 @@ async def test_confirm_from_invalid_states_is_409(
             _setup["chain"],
             now - timedelta(seconds=10 + i),
             status,
+            cancel_reason="TREATMENT_CANCELLED" if status == "CANCELADA" else None,
         )
         async with session_factory() as s:
             with pytest.raises(HTTPException) as exc:
@@ -620,6 +623,7 @@ async def test_postpone_from_invalid_states_is_409(
             _setup["chain"],
             now - timedelta(seconds=10 + i),
             status,
+            cancel_reason="TREATMENT_CANCELLED" if status == "CANCELADA" else None,
         )
         async with session_factory() as s:
             with pytest.raises(HTTPException) as exc:

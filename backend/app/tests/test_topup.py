@@ -222,7 +222,13 @@ async def _seed_chain(
 
 
 async def _seed_rows(test_engine, chain: dict, specs: list[dict]) -> list[int]:
-    """Crea recordatorios con los campos que indique cada spec."""
+    """Crea recordatorios con los campos que indique cada spec.
+
+    Cada spec admite ``scheduled_at`` y ``status`` y, opcionalmente,
+    ``cancel_reason`` (una fila CANCELADA sembrada debe llevar un
+    motivo valido: el trigger de D-11 rechaza CANCELADA sin motivo;
+    el motivo no es lo que estas pruebas verifican).
+    """
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         ids = []
         for spec in specs:
@@ -232,6 +238,7 @@ async def _seed_rows(test_engine, chain: dict, specs: list[dict]) -> list[int]:
                 user_id=chain["user_id"],
                 scheduled_at=spec["scheduled_at"],
                 status=spec["status"],
+                cancel_reason=spec.get("cancel_reason"),
                 claimed_at=spec.get("claimed_at"),
                 current_attempt_id=spec.get("current_attempt_id"),
                 next_attempt_at=spec.get("next_attempt_at"),
@@ -627,7 +634,7 @@ async def test_topup_recreates_cancelled_slots_without_touching_history(
     # Cancelar los 3 PENDIENTE futuros (como al pausar).
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         await reminder_repository.cancel_pending_for_treatment(
-            s, chain["treatment_id"], T0
+            s, chain["treatment_id"], T0, "TREATMENT_PAUSED"
         )
         await s.commit()
     rows = await _reminder_rows(test_engine, chain["user_id"])
@@ -697,7 +704,7 @@ async def test_topup_leaves_existing_states_intact(
         {"scheduled_at": datetime(2026, 11, 22, 10, 0, tzinfo=timezone.utc), "status": "TOMADA"},
         {"scheduled_at": datetime(2026, 11, 22, 15, 0, tzinfo=timezone.utc), "status": "POSPUESTA"},
         {"scheduled_at": datetime(2026, 11, 20, 13, 0, tzinfo=timezone.utc), "status": "PERDIDA"},
-        {"scheduled_at": datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc), "status": "CANCELADA"},
+        {"scheduled_at": datetime(2026, 11, 21, 9, 0, tzinfo=timezone.utc), "status": "CANCELADA", "cancel_reason": "TREATMENT_CANCELLED"},
         {"scheduled_at": datetime(2026, 11, 23, 10, 0, tzinfo=timezone.utc), "status": "FALLIDA"},
     ]
     await _seed_rows(test_engine, chain, other)

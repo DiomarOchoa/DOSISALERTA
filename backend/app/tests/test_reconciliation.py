@@ -202,7 +202,10 @@ async def _seed_rows(test_engine, chain: dict, specs: list[dict]) -> list[int]:
 
     Cada spec admite: ``scheduled_at`` y ``status`` (obligatorios)
     y ``claimed_at``, ``current_attempt_id``, ``next_attempt_at``,
-    ``attempt_count``, ``parent_reminder_id`` y ``postponed_count``.
+    ``attempt_count``, ``parent_reminder_id``, ``postponed_count``
+    y ``cancel_reason``. Una fila CANCELADA sembrada debe llevar
+    un motivo valido (el trigger de D-11 rechaza CANCELADA sin
+    motivo); el motivo no es lo que estas pruebas verifican.
     """
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         ids = []
@@ -213,6 +216,7 @@ async def _seed_rows(test_engine, chain: dict, specs: list[dict]) -> list[int]:
                 user_id=chain["user_id"],
                 scheduled_at=spec["scheduled_at"],
                 status=spec["status"],
+                cancel_reason=spec.get("cancel_reason"),
                 claimed_at=spec.get("claimed_at"),
                 current_attempt_id=spec.get("current_attempt_id"),
                 next_attempt_at=spec.get("next_attempt_at"),
@@ -456,7 +460,7 @@ async def test_no_mark_within_grace_or_terminal(
             {"scheduled_at": now - timedelta(minutes=29), "status": "PENDIENTE"},
             {"scheduled_at": now - timedelta(hours=2), "status": "TOMADA"},
             {"scheduled_at": now - timedelta(hours=2, minutes=1), "status": "POSPUESTA"},
-            {"scheduled_at": now - timedelta(hours=2, minutes=2), "status": "CANCELADA"},
+            {"scheduled_at": now - timedelta(hours=2, minutes=2), "status": "CANCELADA", "cancel_reason": "TREATMENT_CANCELLED"},
             {"scheduled_at": now - timedelta(hours=2, minutes=3), "status": "FALLIDA"},
             {"scheduled_at": now + timedelta(hours=1), "status": "PENDIENTE"},
         ],

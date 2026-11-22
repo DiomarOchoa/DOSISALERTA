@@ -238,7 +238,10 @@ async def _seed_reminders(
     """Crea recordatorios; devuelve ids.
 
     Cada spec es ``(scheduled_at, status)`` o ``(scheduled_at,
-    status, next_attempt_at, attempt_count)``.
+    status, next_attempt_at, attempt_count)``. Una fila CANCELADA
+    sembrada lleva motivo ``TREATMENT_CANCELLED`` (el trigger de
+    D-11 rechaza CANCELADA sin motivo; el motivo no es lo que
+    estas pruebas verifican).
     """
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         ids = []
@@ -246,12 +249,18 @@ async def _seed_reminders(
             when, status = spec[0], spec[1]
             next_attempt_at = spec[2] if len(spec) > 2 else None
             attempt_count = spec[3] if len(spec) > 3 else 0
+            cancel_reason = (
+                spec[4]
+                if len(spec) > 4
+                else ("TREATMENT_CANCELLED" if status == "CANCELADA" else None)
+            )
             row = MedicationReminder(
                 schedule_id=chain["schedule_id"],
                 treatment_medication_id=chain["link_id"],
                 user_id=chain["user_id"],
                 scheduled_at=when,
                 status=status,
+                cancel_reason=cancel_reason,
                 next_attempt_at=next_attempt_at,
                 attempt_count=attempt_count,
             )
@@ -343,11 +352,14 @@ async def _log_rows(test_engine, reminder_id: int) -> list[dict]:
         ]
 
 
-async def _set_status(test_engine, reminder_id: int, status: str) -> None:
+async def _set_status(
+    test_engine, reminder_id: int, status: str, cancel_reason: str | None = None
+) -> None:
     async with AsyncSession(test_engine, expire_on_commit=False) as s:
         row = await s.get(MedicationReminder, reminder_id)
         assert row is not None
         row.status = status
+        row.cancel_reason = cancel_reason
         await s.commit()
 
 
@@ -584,7 +596,7 @@ async def test_cancelled_not_processed(
     assert len(scheduler) == 1
     # Se cancela en la BD despues de cargar: el proceso debe
     # fallar la reclamacion y no enviar nada.
-    await _set_status(test_engine, rid, "CANCELADA")
+    await _set_status(test_engine, rid, "CANCELADA", "TREATMENT_CANCELLED")
     sent = await scheduler.process_due(_utcnow())
     assert sent == []
     assert sender.deliveries == []

@@ -664,8 +664,15 @@ async def _change_treatment_status(
             # Pausar, cancelar o completar: cancelar los
             # recordatorios PENDIENTE y ENVIANDO futuros y
             # conservar el historial (diseno §4.6.4).
+            # D-11: el motivo registra el primer evento de
+            # cancelacion (la causa que cancelo la dosis).
+            reason = {
+                "CANCELADO": "TREATMENT_CANCELLED",
+                "PAUSADO": "TREATMENT_PAUSED",
+                "COMPLETADO": "TREATMENT_COMPLETED",
+            }[target_status]
             await reminder_repository.cancel_pending_for_treatment(
-                session, treatment.id, now
+                session, treatment.id, now, reason
             )
         await session.commit()
         # `updated_at` con `onupdate`: refresh antes de validar.
@@ -912,8 +919,9 @@ async def delete_treatment_medication(
             session, link.id, actor.id
         )
         for schedule in schedules:
+            # D-11: el motivo es el retiro del vinculo.
             await reminder_repository.cancel_pending_for_schedule(
-                session, schedule.id, now
+                session, schedule.id, now, "LINK_REMOVED"
             )
         await session.commit()
         # `updated_at` con `onupdate`: refresh antes de validar.
