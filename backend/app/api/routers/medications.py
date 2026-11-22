@@ -2,7 +2,8 @@
 
 ``POST /api/v1/medications``, ``GET /api/v1/medications``,
 ``GET /api/v1/medications/{id}``, ``PATCH`` y ``DELETE``
-(desactivacion logica). Las rutas solo validan la entrada,
+(desactivacion logica), mas ``POST /{id}/reactivate``
+(reactivacion logica, I-7). Las rutas solo validan la entrada,
 llaman al servicio y devuelven la respuesta; no contienen
 logica de negocio ni SQL.
 
@@ -101,5 +102,18 @@ async def delete_medication(
 ) -> MedicationResponse:
     """Desactiva un medicamento (`is_active=False`, 200)."""
     return await medication_service.deactivate_medication(
+        session, current_user, medication_id, patient_id=patient_id
+    )
+
+
+@router.post("/{medication_id}/reactivate", response_model=MedicationResponse)
+async def reactivate_medication(
+    medication_id: int,
+    patient_id: int | None = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> MedicationResponse:
+    """Reactiva un medicamento (`is_active=True`, 200; I-7)."""
+    return await medication_service.reactivate_medication(
         session, current_user, medication_id, patient_id=patient_id
     )

@@ -103,6 +103,17 @@ def deactivate(session: AsyncSession, medication: Medication) -> Medication:
     return medication
 
 
+def reactivate(session: AsyncSession, medication: Medication) -> Medication:
+    """Reactivacion logica (`is_active=True`, sin commit).
+
+    No revive nada: los recordatorios CANCELADA conservan su motivo
+    (decision B, D-11); los futuros nuevos nacen por el top-up o la
+    regeneracion normal, no por esta funcion.
+    """
+    medication.is_active = True
+    return medication
+
+
 async def is_in_active_treatment(
     session: AsyncSession, medication_id: int, user_id: int
 ) -> bool:

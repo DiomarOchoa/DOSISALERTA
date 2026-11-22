@@ -366,3 +366,69 @@ async def deactivate_medication(
         await session.rollback()
         raise
     return MedicationResponse.model_validate(medication)
+
+
+async def reactivate_medication(
+    session: AsyncSession,
+    actor: User,
+    medication_id: int,
+    patient_id: int | None = None,
+) -> MedicationResponse:
+    """Reactiva un medicamento (`is_active=True`, 200).
+
+    Reactivacion logica. El paciente puede reactivar cualquiera de
+    sus medicamentos; el cuidador con `perm_manage_medications`
+    tambien (mismo permiso y auditoria que la desactivacion).
+    Idempotente: si ya esta activo, devuelve 200 sin modificarlo.
+
+    No revive recordatorios: las filas CANCELADA conservan su motivo
+    (decision B, D-11) y nunca vuelven a PENDIENTE. Los recordatorios
+    futuros nuevos nacen por el top-up o la regeneracion normal de
+    72 h (que solo genera para medicamentos activos, Fase A, I-3),
+    no por esta funcion.
+
+    A diferencia de la desactivacion, no hay restriccion por estar
+    en un tratamiento activo: reactivar restaura el medicamento, no
+    lo detiene, y es justo en un tratamiento activo donde se quiere
+    volver a usarlo.
+    """
+    try:
+        effective_user_id = await caregiver_access.resolve_actor(
+            session,
+            actor=actor,
+            patient_id=patient_id,
+            permission="perm_manage_medications",
+            action="MANAGE_MEDICATION_REACTIVATE",
+            target_type="medication",
+            target_id=medication_id,
+        )
+        medication = await _load_medication_or_error(
+            session, medication_id, effective_user_id
+        )
+        if medication.is_active:
+            # Idempotente: ya esta activo, no hay nada que cambiar.
+            return MedicationResponse.model_validate(medication)
+        medication_repository.reactivate(session, medication)
+        if _is_caregiver(actor, effective_user_id):
+            caregiver_access.audit_action(
+                session,
+                caregiver_id=actor.id,
+                patient_id=effective_user_id,
+                action="MANAGE_MEDICATION_REACTIVATE",
+                target_type="medication",
+                target_id=medication.id,
+                details={"field": "is_active"},
+            )
+        await session.commit()
+        # `updated_at` tiene `onupdate=func.now()`: tras el UPDATE
+        # la base regenera el valor y SQLAlchemy lo marca expirado.
+        # Sin este refresh, `model_validate` (sincrono) intentaria
+        # una carga perezosa y fallaria con MissingGreenlet.
+        await session.refresh(medication)
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception:
+        await session.rollback()
+        raise
+    return MedicationResponse.model_validate(medication)
