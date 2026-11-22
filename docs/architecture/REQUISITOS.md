@@ -39,10 +39,17 @@ roadmap, no solo el código.
   queda como `POSPUESTA` y se crea uno nuevo hijo del anterior.
 - **RF13.** Consultar el historial completo de tomas, incluidas las
   perdidas y las pospuestas, sin que desaparezca al modificar o
-  cancelar un tratamiento.
+  cancelar un tratamiento. Incluye los 8 estados, pendientes y futuros
+  ya generados (horizonte 72 h), con el estado almacenado (D-10,
+  aprobada 2026-11-21).
 - **RF14.** Estadísticas de cumplimiento: porcentaje de tomas a tiempo
-  sobre tomas programadas, por medicamento y por periodo, excluyendo
-  del denominador las canceladas por cancelación del tratamiento.
+  sobre tomas programadas, por medicamento y por periodo, con gracia
+  inclusiva de 30 minutos (D-8); las canceladas con motivo conocido
+  (cancelación, pausa o finalización del tratamiento, desactivación
+  del medicamento o retiro del vínculo) se excluyen del denominador y
+  las canceladas sin motivo registrado (históricas) se incluyen
+  (D-11, Alt 3, aprobada 2026-11-21). Agrupación opcional por día,
+  semana ISO, mes o medicamento (D-7).
 
 ### Telegram
 

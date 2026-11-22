@@ -272,7 +272,8 @@ la web, nunca persistencia, seguridad ni pruebas del motor.
 - Archivos: `backend/app/services/stats_service.py`,
   `backend/app/api/routers/stats.py`.
 - Pruebas: un tratamiento con 10 programadas, 7 tomadas, 2 perdidas y
-  1 cancelada por cancelación da 70 %, no 77 % ni 63 %; el historial
+  1 cancelada por cancelación da 77,8 % (denominador 9, D-1 opción 2),
+  no 70 % ni 63 %; el historial
   sobrevive a la cancelación del tratamiento.
 - Aceptación: las cifras de la API coinciden con un conteo manual
   sobre los datos de prueba.
