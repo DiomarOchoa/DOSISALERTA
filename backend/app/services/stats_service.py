@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.users import User
 from app.repositories import reminder_repository, stats_repository
 from app.schemas.stats import (
+    ComplianceBucket,
     ComplianceResponse,
     ComplianceSummary,
     HistoryItemResponse,
@@ -44,6 +45,22 @@ _REASON_KEYS = (
 )
 
 _RANGE_ERROR = "from debe ser anterior a to"
+
+# Conteos en cero para los buckets vacíos de la serie completa
+# (D-7): un día, semana o mes sin dosis aparece con
+# `scheduled=0` y `compliance_percentage=null`.
+_ZERO_COUNTS: dict[str, int] = {
+    "taken_on_time": 0,
+    "taken_late": 0,
+    "lost": 0,
+    "cancelled": 0,
+    "cancelled_treatment_cancelled": 0,
+    "cancelled_treatment_paused": 0,
+    "cancelled_treatment_completed": 0,
+    "cancelled_medication_deactivated": 0,
+    "cancelled_link_removed": 0,
+    "cancelled_unknown": 0,
+}
 
 
 async def _resolve_effective_user(
@@ -178,10 +195,8 @@ def _local_date_to_utc(day: date, tz: ZoneInfo) -> datetime:
     return datetime.combine(day, time.min, tzinfo=tz).astimezone(timezone.utc)
 
 
-def _build_summary(
-    from_date: date, to_date: date, counts: dict[str, int]
-) -> ComplianceSummary:
-    """Resumen a partir de los conteos del repositorio.
+def _summary_fields(counts: dict[str, int]) -> dict:
+    """Campos del resumen a partir de los conteos del repositorio.
 
     Denominador (D-1 opción 2; D-11 Alt 3, aprobada):
     `scheduled − cancelled + unknown`. Si el denominador es 0,
@@ -217,17 +232,130 @@ def _build_summary(
         if denominator > 0
         else None
     )
+    return {
+        "scheduled": scheduled,
+        "taken_on_time": taken_on_time,
+        "taken_late": taken_late,
+        "lost": lost,
+        "cancelled": cancelled,
+        "cancelled_by_reason": cancelled_by_reason,
+        "compliance_percentage": percentage,
+    }
+
+
+def _build_summary(
+    from_date: date, to_date: date, counts: dict[str, int]
+) -> ComplianceSummary:
+    """Resumen a partir de los conteos del repositorio."""
     return ComplianceSummary(
-        from_=from_date,
-        to=to_date,
-        scheduled=scheduled,
-        taken_on_time=taken_on_time,
-        taken_late=taken_late,
-        lost=lost,
-        cancelled=cancelled,
-        cancelled_by_reason=cancelled_by_reason,
-        compliance_percentage=percentage,
+        from_=from_date, to=to_date, **_summary_fields(counts)
     )
+
+
+def _build_bucket(
+    from_date: date, to_date: date, counts: dict[str, int], **identity
+) -> ComplianceBucket:
+    """Un bucket: los campos del resumen + solo su identidad.
+
+    Solo se pasan los campos de identidad que corresponden al
+    tipo de grupo (`period_start` + `period_label` para
+    día/semana/mes; `medication_id` + `medication_name` para
+    medicamento), para que los demás queden sin establecer y el
+    endpoint los omita al serializar
+    (`response_model_exclude_unset=True`, plan §5.3).
+    """
+    return ComplianceBucket(
+        from_=from_date, to=to_date, **_summary_fields(counts), **identity
+    )
+
+
+def _iter_period_starts(
+    from_date: date, to_date: date, group_by: str
+) -> list[date]:
+    """Todos los `period_start` del periodo (serie completa, D-7).
+
+    Día: cada fecha de `[from_date, to_date)`. Semana: cada lunes
+    cuya semana toca el periodo (el primero puede ser anterior a
+    `from_date`: periodo parcial, S-49). Mes: cada día 1 cuyo mes
+    toca el periodo (S-50).
+    """
+    if group_by == "day":
+        starts = []
+        day = from_date
+        while day < to_date:
+            starts.append(day)
+            day += timedelta(days=1)
+        return starts
+    if group_by == "week":
+        monday = from_date - timedelta(days=from_date.weekday())
+        starts = []
+        while monday < to_date:
+            starts.append(monday)
+            monday += timedelta(days=7)
+        return starts
+    if group_by == "month":
+        starts = []
+        month = date(from_date.year, from_date.month, 1)
+        while month < to_date:
+            starts.append(month)
+            if month.month == 12:
+                month = date(month.year + 1, 1, 1)
+            else:
+                month = date(month.year, month.month + 1, 1)
+        return starts
+    raise ValueError(f"group_by no soportado: {group_by}")
+
+
+def _period_label(start: date, group_by: str) -> str:
+    """Etiqueta del bucket (plan §4.5): día, semana ISO o mes."""
+    if group_by == "day":
+        return start.isoformat()
+    if group_by == "week":
+        iso_year, iso_week, _ = start.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}"
+    if group_by == "month":
+        return f"{start.year}-{start.month:02d}"
+    raise ValueError(f"group_by no soportado: {group_by}")
+
+
+def _build_groups(
+    from_date: date,
+    to_date: date,
+    group_by: str,
+    grouped_rows: list[dict],
+) -> list[ComplianceBucket]:
+    """Buckets del desglose (D-7).
+
+    Medicamento: sin serie completa, solo los medicamentos con
+    filas, ordenados por nombre (el repositorio ya los ordena).
+    Día/semana/mes: serie completa; los periodos sin dosis
+    aparecen con `scheduled=0` y `compliance_percentage=null`.
+    """
+    if group_by == "medication":
+        return [
+            _build_bucket(
+                from_date,
+                to_date,
+                row,
+                medication_id=row["medication_id"],
+                medication_name=row["medication_name"],
+            )
+            for row in grouped_rows
+        ]
+    by_key = {row["period_start"]: row for row in grouped_rows}
+    buckets = []
+    for start in _iter_period_starts(from_date, to_date, group_by):
+        counts = by_key.get(start, _ZERO_COUNTS)
+        buckets.append(
+            _build_bucket(
+                from_date,
+                to_date,
+                counts,
+                period_start=start,
+                period_label=_period_label(start, group_by),
+            )
+        )
+    return buckets
 
 
 async def get_compliance(
@@ -239,12 +367,15 @@ async def get_compliance(
     to_date: date | None = None,
     medication_id: int | None = None,
     treatment_id: int | None = None,
+    group_by: str | None = None,
 ) -> ComplianceResponse:
-    """Resumen de cumplimiento del periodo (RF14, sin `group_by`).
+    """Resumen de cumplimiento del periodo (RF14), con `group_by` (D-7).
 
-    `from`/`to` son fechas en la zona del paciente (D-4); el
-    `group_by` y los grupos llegan en el commit 4, así que
-    `groups` es `null`.
+    `from`/`to` son fechas en la zona del paciente (D-4). Sin
+    `group_by`, solo el resumen y `groups: null`. Con `group_by`,
+    el resumen del periodo completo (a partir de los conteos
+    agregados, nunca promediando los grupos) más el desglose por
+    grupo, con serie temporal completa para día/semana/mes.
     """
     try:
         effective_user_id, is_caregiver = await _resolve_effective_user(
@@ -271,11 +402,24 @@ async def get_compliance(
             medication_id=medication_id,
             treatment_id=treatment_id,
         )
+        summary = _build_summary(from_date, to_date, counts)
+        groups = None
+        if group_by is not None:
+            grouped = await stats_repository.compliance_counts_grouped(
+                session,
+                user_id=effective_user_id,
+                from_utc=from_utc,
+                to_utc=to_utc,
+                group_by=group_by,
+                tz_name=str(tz),
+                medication_id=medication_id,
+                treatment_id=treatment_id,
+            )
+            groups = _build_groups(from_date, to_date, group_by, grouped)
     except HTTPException:
         await session.rollback()
         raise
     except Exception:
         await session.rollback()
         raise
-    summary = _build_summary(from_date, to_date, counts)
-    return ComplianceResponse(summary=summary, groups=None)
+    return ComplianceResponse(summary=summary, groups=groups)
