@@ -59,6 +59,13 @@ _FORBIDDEN_ERROR = "No tienes permiso para realizar esta acción"
 CONFIRMABLE_STATUSES = ("PENDIENTE", "ENVIANDO", "ENVIADA", "FALLIDA")
 POSTPONABLE_STATUSES = ("PENDIENTE", "ENVIANDO", "ENVIADA", "FALLIDA")
 
+# I-5: maximo de posposiciones por cadena. El hijo hereda el
+# contador del original (+1), asi que el tope se comprueba sobre
+# el recordatorio que se intenta posponer: con 3 ya no se puede
+# posponer mas (la cuarta posposicion es 409).
+MAX_POSTPONEMENTS = 3
+_POSTPONE_LIMIT_ERROR = "Límite de posposiciones alcanzado (máximo 3 por cadena)"
+
 # Mensajes de 409 por estado (el estado actual no admite la operacion).
 _STATE_MESSAGES = {
     "TOMADA": "La dosis ya fue tomada",
@@ -254,12 +261,17 @@ async def postpone(
     vinculo y usuario del original; `postponed_count` sube en uno.
     Todo en una sola transaccion. Si ya hay un recordatorio
     activo en ese instante para el mismo horario, es 409 y no
-    cambia nada (rollback completo).
+    cambia nada (rollback completo). I-5: si el recordatorio ya
+    fue pospuesto `MAX_POSTPONEMENTS` veces (el contador de la
+    cadena), es 409 y tampoco cambia nada.
     """
     reminder = await _load_reminder_or_error(session, reminder_id)
     await _require_owner(
         session, actor, reminder, attempted_action="POSTPONE_REMINDER"
     )
+
+    if reminder.postponed_count >= MAX_POSTPONEMENTS:
+        raise HTTPException(status_code=409, detail=_POSTPONE_LIMIT_ERROR)
 
     transitioned = await reminder_repository.transition_to_postponed(
         session,
