@@ -22,14 +22,19 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, delete, exists, or_, select, update
+from sqlalchemy import and_, delete, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.logs import NotificationLog
-from app.models.medications import TreatmentMedication
-from app.models.reminders import CANCEL_REASONS, MedicationReminder
+from app.models.medications import Medication, Treatment, TreatmentMedication
+from app.models.reminders import (
+    CANCEL_REASONS,
+    MedicationIntake,
+    MedicationReminder,
+)
 
 
 def _with_relations(stmt):
@@ -663,3 +668,134 @@ async def release_stale_sending(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+def _history_filters(
+    user_id: int,
+    from_dt: datetime | None,
+    to_dt: datetime | None,
+    medication_id: int | None,
+    treatment_id: int | None,
+    status: str | None,
+) -> list:
+    """Condiciones WHERE del historial (RF13).
+
+    Las comparten `list_history` y `count_history`, para que el
+    `total` cuente exactamente los mismos filtros del listado
+    (D-6). `from`/`to` filtran por `scheduled_at`, `[from, to)`.
+    """
+    conditions = [MedicationReminder.user_id == user_id]
+    if from_dt is not None:
+        conditions.append(MedicationReminder.scheduled_at >= from_dt)
+    if to_dt is not None:
+        conditions.append(MedicationReminder.scheduled_at < to_dt)
+    if medication_id is not None:
+        conditions.append(TreatmentMedication.medication_id == medication_id)
+    if treatment_id is not None:
+        conditions.append(TreatmentMedication.treatment_id == treatment_id)
+    if status is not None:
+        conditions.append(MedicationReminder.status == status)
+    return conditions
+
+
+async def list_history(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    from_dt: datetime | None = None,
+    to_dt: datetime | None = None,
+    medication_id: int | None = None,
+    treatment_id: int | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[RowMapping]:
+    """Filas del historial (RF13).
+
+    Una sola consulta con JOINs (recordatorio + vínculo +
+    medicamento + tratamiento + toma); no N+1. El `LEFT JOIN` a
+    `medication_intakes` deja `taken_at`/`source`/`note` en
+    `null` cuando no hay toma. Orden `scheduled_at DESC, id
+    DESC` (estable y determinista, D-6). Incluye todos los
+    estados, también los no resueltos y los futuros (D-10).
+    """
+    stmt = (
+        select(
+            MedicationReminder.id,
+            MedicationReminder.scheduled_at,
+            MedicationReminder.status,
+            MedicationReminder.cancel_reason,
+            MedicationReminder.parent_reminder_id,
+            MedicationReminder.postponed_count,
+            MedicationReminder.created_at,
+            MedicationReminder.updated_at,
+            TreatmentMedication.medication_id,
+            Medication.name.label("medication_name"),
+            TreatmentMedication.dose_amount,
+            TreatmentMedication.dose_unit,
+            TreatmentMedication.treatment_id,
+            Treatment.title.label("treatment_title"),
+            MedicationIntake.taken_at,
+            MedicationIntake.source,
+            MedicationIntake.note,
+        )
+        .select_from(MedicationReminder)
+        .join(
+            TreatmentMedication,
+            TreatmentMedication.id
+            == MedicationReminder.treatment_medication_id,
+        )
+        .join(Medication, Medication.id == TreatmentMedication.medication_id)
+        .join(Treatment, Treatment.id == TreatmentMedication.treatment_id)
+        .outerjoin(
+            MedicationIntake,
+            MedicationIntake.reminder_id == MedicationReminder.id,
+        )
+        .where(
+            *_history_filters(
+                user_id, from_dt, to_dt, medication_id, treatment_id, status
+            )
+        )
+        .order_by(
+            MedicationReminder.scheduled_at.desc(),
+            MedicationReminder.id.desc(),
+        )
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await session.execute(stmt)
+    return list(result.mappings().all())
+
+
+async def count_history(
+    session: AsyncSession,
+    *,
+    user_id: int,
+    from_dt: datetime | None = None,
+    to_dt: datetime | None = None,
+    medication_id: int | None = None,
+    treatment_id: int | None = None,
+    status: str | None = None,
+) -> int:
+    """Total de filas del historial con los mismos filtros (RF13, D-6).
+
+    Misma WHERE que `list_history`; solo cambia el SELECT.
+    El JOIN a `treatment_medications` es necesario porque los
+    filtros de medicamento/tratamiento viven en el vínculo.
+    """
+    stmt = (
+        select(func.count())
+        .select_from(MedicationReminder)
+        .join(
+            TreatmentMedication,
+            TreatmentMedication.id
+            == MedicationReminder.treatment_medication_id,
+        )
+        .where(
+            *_history_filters(
+                user_id, from_dt, to_dt, medication_id, treatment_id, status
+            )
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one()

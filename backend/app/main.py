@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, health, medications, reminders, treatments
+from app.api.routers import auth, health, medications, reminders, stats, treatments
 from app.bot.config import BotConfig
 from app.core.config import get_settings
 from app.database import AsyncSessionLocal
@@ -147,6 +147,12 @@ def create_app(
     # Tomas (Fase 5, Etapa 4, RF11/RF12): confirmar y posponer
     # recordatorios. Solo paciente; el servicio decide el 403.
     app.include_router(reminders.router, prefix="/api/v1")
+
+    # Estadísticas de cumplimiento (Fase 7, RF14): porcentaje de
+    # tomas a tiempo por periodo, con desglose por motivo de
+    # cancelación (D-11). El historial vive en el router de
+    # recordatorios (D-5).
+    app.include_router(stats.router, prefix="/api/v1")
 
     return app
 
