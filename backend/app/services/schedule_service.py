@@ -135,10 +135,15 @@ async def generate_reminders_for_schedule(
                         "scheduled_at": scheduled_at,
                         "status": "PENDIENTE",
                     }
-                    if parent_by_scheduled_at is not None:
-                        parent_id = parent_by_scheduled_at.get(scheduled_at)
-                        if parent_id is not None:
-                            row["parent_reminder_id"] = parent_id
+                    # La clave va siempre (con None si no hay padre): la
+                    # inserción masiva exige las mismas claves en todas
+                    # las filas; si solo algunas llevan el padre, la
+                    # compilación falla (S-77, defecto de reanudación).
+                    row["parent_reminder_id"] = (
+                        parent_by_scheduled_at.get(scheduled_at)
+                        if parent_by_scheduled_at is not None
+                        else None
+                    )
                     rows.append(row)
         day += timedelta(days=1)
     return await reminder_repository.create_many(session, rows)
