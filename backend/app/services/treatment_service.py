@@ -561,7 +561,8 @@ async def update_treatment(
     """Edita parcialmente un tratamiento (200).
 
     Solo paciente: `title`, `notes`, `end_date`. El estado NO se
-    edita aqui (`notes` es indicacion medica, §6.2).
+    edita aqui (`notes` es indicacion medica, §6.2). I-4: un
+    tratamiento CANCELADO o COMPLETADO bloquea la edicion (400).
     """
     try:
         await _reject_caregiver_mutation(
@@ -575,6 +576,8 @@ async def update_treatment(
         treatment = await _load_treatment_or_error(
             session, treatment_id, actor.id
         )
+        if treatment.status in ("CANCELADO", "COMPLETADO"):
+            raise HTTPException(status_code=400, detail=_TERMINAL_STATE_ERROR)
         fields = data.model_dump(exclude_unset=True)
         new_end = fields.get("end_date", treatment.end_date)
         if new_end is not None and new_end < treatment.start_date:
@@ -850,9 +853,8 @@ async def update_treatment_medication(
 ) -> TreatmentMedicationResponse:
     """Cambia la dosis, la unidad o las instrucciones (200).
 
-    Solo paciente: la dosis es prescripcion medica (§6.2). El
-    diseno no restringe el estado del tratamiento ni del vinculo
-    para esta operacion; se permite en cualquier estado.
+    Solo paciente: la dosis es prescripcion medica (§6.2). I-4:
+    un tratamiento CANCELADO o COMPLETADO bloquea la edicion (400).
     """
     try:
         await _reject_caregiver_mutation(
@@ -863,7 +865,9 @@ async def update_treatment_medication(
             target_type="treatment_medication",
             target_id=link_id,
         )
-        await _load_treatment_or_error(session, treatment_id, actor.id)
+        treatment = await _load_treatment_or_error(session, treatment_id, actor.id)
+        if treatment.status in ("CANCELADO", "COMPLETADO"):
+            raise HTTPException(status_code=400, detail=_TERMINAL_STATE_ERROR)
         link = await _load_link_or_error(
             session, treatment_id, link_id, actor.id
         )
@@ -896,8 +900,8 @@ async def delete_treatment_medication(
     Solo paciente. Desactivacion logica (`is_active=False`) +
     cancelacion de sus recordatorios PENDIENTE y ENVIANDO
     futuros. El indice parcial permite volver a anadir el mismo
-    medicamento despues. El diseno no restringe el estado del
-    tratamiento para esta operacion.
+    medicamento despues. I-4: un tratamiento CANCELADO o
+    COMPLETADO bloquea la eliminacion del vinculo (400).
     """
     try:
         await _reject_caregiver_mutation(
@@ -908,7 +912,9 @@ async def delete_treatment_medication(
             target_type="treatment_medication",
             target_id=link_id,
         )
-        await _load_treatment_or_error(session, treatment_id, actor.id)
+        treatment = await _load_treatment_or_error(session, treatment_id, actor.id)
+        if treatment.status in ("CANCELADO", "COMPLETADO"):
+            raise HTTPException(status_code=400, detail=_TERMINAL_STATE_ERROR)
         link = await _load_link_or_error(
             session, treatment_id, link_id, actor.id
         )
