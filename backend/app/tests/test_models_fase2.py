@@ -200,7 +200,7 @@ async def make_chain(session: AsyncSession, user: User):
 # ------------------------------------------------------------------
 
 
-async def test_migration_creates_13_tables(session: AsyncSession):
+async def test_migration_creates_14_tables(session: AsyncSession):
     rows = await session.execute(
         text(
             "SELECT table_name FROM information_schema.tables "
@@ -211,6 +211,7 @@ async def test_migration_creates_13_tables(session: AsyncSession):
     tables = [row[0] for row in rows]
     assert tables == [
         "caregiver_audit_log",
+        "caregiver_link_attempts",
         "caregiver_links",
         "medication_intakes",
         "medication_reminders",
@@ -224,7 +225,8 @@ async def test_migration_creates_13_tables(session: AsyncSession):
         "treatments",
         "users",
     ]
-    assert "caregiver_link_attempts" not in tables
+    # La tabla 14 (intentos de vinculacion de cuidador) llega con
+    # la migracion de la Fase 6 (8033addb5499).
 
 
 async def test_alembic_version_is_head(session: AsyncSession):

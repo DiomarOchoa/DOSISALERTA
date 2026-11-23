@@ -76,6 +76,25 @@ class UserRegister(BaseModel):
         return _validate_timezone_iana(value)
 
 
+class UserUpdate(BaseModel):
+    """Entrada de `PATCH /api/v1/auth/me` (RF03).
+
+    Solo la zona horaria es actualizable por ahora. Si no se
+    envia `timezone`, no se cambia nada y se devuelve el perfil
+    actual. Un cambio de zona recalcula unicamente los
+    recordatorios PENDIENTE futuros (RNF04).
+    """
+
+    timezone: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _validate_timezone_iana(value)
+
+
 class UserLogin(BaseModel):
     """Entrada de `POST /api/v1/auth/login` (JSON)."""
 

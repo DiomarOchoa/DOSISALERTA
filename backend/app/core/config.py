@@ -126,6 +126,24 @@ class Settings(BaseModel):
     jwt_access_expiration_minutes: int = 60
     jwt_refresh_expiration_days: int = 7
 
+    # Secreto para los codigos de invitacion de cuidadores
+    # (Etapa 5, RF20). CAREGIVER_LINK_SECRET es obligatorio y debe
+    # tener al menos 32 caracteres; distinto de JWT_SECRET y de
+    # TELEGRAM_LINK_SECRET. Solo se usa para el HMAC-SHA256 de los
+    # codigos de invitacion; su valor nunca se imprime en logs ni
+    # en mensajes de error, y el codigo en texto plano nunca se
+    # guarda ni se devuelve salvo una vez, al crear la invitacion.
+    caregiver_link_secret: str = ""
+
+    # Secreto para los codigos de vinculacion de Telegram
+    # (Etapa 6, RF15). TELEGRAM_LINK_SECRET es obligatorio y debe
+    # tener al menos 32 caracteres; distinto de JWT_SECRET y de
+    # CAREGIVER_LINK_SECRET. Solo se usa para el HMAC-SHA256 de los
+    # codigos de vinculacion; su valor nunca se imprime en logs ni
+    # en mensajes de error, y el codigo en texto plano nunca se
+    # guarda ni se devuelve salvo una vez, al crear el codigo.
+    telegram_link_secret: str = ""
+
     # Scheduler del motor (Fase 5, Etapa 2). Apagado por defecto
     # mientras el sender es simulado: encenderlo marcaria
     # recordatorios ENVIADA sin haber enviado nada real. Se
@@ -145,6 +163,12 @@ class Settings(BaseModel):
         data.setdefault("postgres_host", _getenv("POSTGRES_HOST", "localhost"))
         data.setdefault("postgres_port", _getint("POSTGRES_PORT", 5432))
         data.setdefault("jwt_secret", _getenv("JWT_SECRET", ""))
+        data.setdefault(
+            "caregiver_link_secret", _getenv("CAREGIVER_LINK_SECRET", "")
+        )
+        data.setdefault(
+            "telegram_link_secret", _getenv("TELEGRAM_LINK_SECRET", "")
+        )
         data.setdefault("jwt_algorithm", _getenv("JWT_ALGORITHM", "HS256"))
         data.setdefault(
             "jwt_access_expiration_minutes",
@@ -169,6 +193,26 @@ class Settings(BaseModel):
         if len(self.jwt_secret) < 32:
             raise ValueError(
                 "JWT_SECRET debe tener al menos 32 caracteres."
+            )
+        if not self.caregiver_link_secret:
+            raise ValueError(
+                "CAREGIVER_LINK_SECRET no está configurado. Genera un "
+                "secreto de al menos 32 caracteres y definelo en .env "
+                "(ver .env.example)."
+            )
+        if len(self.caregiver_link_secret) < 32:
+            raise ValueError(
+                "CAREGIVER_LINK_SECRET debe tener al menos 32 caracteres."
+            )
+        if not self.telegram_link_secret:
+            raise ValueError(
+                "TELEGRAM_LINK_SECRET no está configurado. Genera un "
+                "secreto de al menos 32 caracteres y definelo en .env "
+                "(ver .env.example)."
+            )
+        if len(self.telegram_link_secret) < 32:
+            raise ValueError(
+                "TELEGRAM_LINK_SECRET debe tener al menos 32 caracteres."
             )
         if self.jwt_algorithm != "HS256":
             raise ValueError(

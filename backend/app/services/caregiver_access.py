@@ -148,6 +148,15 @@ async def resolve_actor(
     """
     if patient_id is None or patient_id == actor.id:
         return actor.id
+    # El paciente debe existir para poder auditar la denegacion
+    # (`caregiver_audit_log.patient_user_id` tiene FK a `users`):
+    # un id inexistente daria 500 al insertar el registro
+    # ACCESS_DENIED. El contrato documentado es 403 (no 404, para
+    # no revelar si el usuario existe): se deniega sin intentar
+    # el registro, igual que con un paciente real sin vinculo.
+    patient = await session.get(User, patient_id)
+    if patient is None:
+        raise HTTPException(status_code=403, detail=_FORBIDDEN_ERROR)
     link = await _get_active_link(
         session, patient_id=patient_id, caregiver_id=actor.id
     )

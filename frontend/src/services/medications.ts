@@ -6,7 +6,8 @@
 //
 // Contrato real del backend (Fase 4, RF04; verificado en vivo):
 // - POST /medications (201), GET /medications (?is_active, ?limit),
-//   GET /medications/{id}, PATCH /medications/{id}, DELETE (200).
+//   GET /medications/{id}, PATCH /medications/{id}, DELETE (200),
+//   POST /medications/{id}/reactivate (200, I-7).
 // - MedicationCreate: name 1-150 (no en blanco), presentation <=100,
 //   concentration <=50, unit <=30, notes opcional.
 // - MedicationUpdate: todos opcionales, al menos uno (si no, 422);
@@ -87,14 +88,25 @@ export async function updateMedication(
 }
 
 // DELETE del backend = desactivacion logica (is_active=false, 200).
-// No hay reactivacion por la API actual: MedicationUpdate no incluye
-// is_active, asi que en la web la desactivacion es de un solo sentido.
-// (Ver el informe de cierre, "Pendientes y limitaciones".)
+// La reactivacion existe desde I-7 (Fase 7): POST
+// /medications/{id}/reactivate (200, idempotente). Reactivar no
+// revive los recordatorios CANCELADA al desactivar; los
+// tratamientos vuelven a generar tomas en la proxima reanudacion
+// del motor.
 export async function deactivateMedication(
   id: number,
 ): Promise<Medication> {
   return request<Medication>(`/medications/${id}`, {
     method: "DELETE",
+    auth: true,
+  });
+}
+
+export async function reactivateMedication(
+  id: number,
+): Promise<Medication> {
+  return request<Medication>(`/medications/${id}/reactivate`, {
+    method: "POST",
     auth: true,
   });
 }

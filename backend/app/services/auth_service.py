@@ -18,7 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.core.config import get_settings
 from app.models.users import User
-from app.repositories import refresh_token_repository, user_repository
+from app.repositories import (
+    refresh_token_repository,
+    schedule_repository,
+    treatment_medication_repository,
+    treatment_repository,
+    user_repository,
+)
 from app.schemas.auth import (
     TokenRefresh,
     TokenResponse,
@@ -26,7 +32,9 @@ from app.schemas.auth import (
     UserRegister,
     UserRegisterResponse,
     UserResponse,
+    UserUpdate,
 )
+from app.services import schedule_service
 
 _GENERIC_LOGIN_ERROR = "Correo o contraseña incorrectos"
 _GENERIC_TOKEN_ERROR = "No se pudo validar la sesión"
@@ -179,6 +187,58 @@ async def logout(session: AsyncSession, data: TokenRefresh) -> None:
     except Exception:
         await session.rollback()
         raise
+
+
+async def update_profile(
+    session: AsyncSession, user: User, data: UserUpdate
+) -> UserResponse:
+    """Actualiza el perfil del usuario autenticado (RF03).
+
+    Solo la zona horaria es actualizable. Si la zona cambia,
+    los recordatorios PENDIENTE futuros de sus horarios activos
+    se regeneran con la zona nueva (RNF04): se borran y se
+    vuelven a generar, sin tocar TOMADA, POSPUESTA, PERDIDA,
+    ENVIADA, ENVIANDO ni CANCELADA. Todo en una sola
+    transaccion: si la regeneracion falla, la zona no cambia.
+    Si no se envia zona (o es la misma), no se regenera nada.
+    """
+    try:
+        changed = data.timezone is not None and data.timezone != user.timezone
+        if changed:
+            assert data.timezone is not None
+            user.timezone = data.timezone
+            await session.flush()
+            schedule_ids = await schedule_repository.list_active_ids_by_user(
+                session, user.id
+            )
+            for schedule_id in schedule_ids:
+                schedule = await schedule_repository.get_by_id(
+                    session, schedule_id, user_id=user.id
+                )
+                if schedule is None or not schedule.is_active:
+                    continue
+                link = await treatment_medication_repository.get_by_id(
+                    session,
+                    schedule.treatment_medication_id,
+                    user_id=user.id,
+                )
+                if link is None or not link.is_active:
+                    continue
+                if link.medication is None or not link.medication.is_active:
+                    continue
+                treatment = await treatment_repository.get_by_id(
+                    session, link.treatment_id, user_id=user.id
+                )
+                if treatment is None or treatment.status != "ACTIVO":
+                    continue
+                await schedule_service.regenerate_reminders_for_schedule(
+                    session, schedule, treatment, user
+                )
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    return UserResponse.model_validate(user)
 
 
 async def resolve_current_user(session: AsyncSession, payload: dict) -> User:

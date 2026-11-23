@@ -22,7 +22,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import auth, health, medications, reminders, stats, treatments
+from app.api.routers import (
+    auth,
+    caregivers,
+    health,
+    medications,
+    reminders,
+    stats,
+    telegram_link,
+    treatments,
+)
 from app.bot.config import BotConfig
 from app.core.config import get_settings
 from app.database import AsyncSessionLocal
@@ -153,6 +162,15 @@ def create_app(
     # cancelación (D-11). El historial vive en el router de
     # recordatorios (D-5).
     app.include_router(stats.router, prefix="/api/v1")
+
+    # Cuidadores (Etapa 5, RF20–RF22): invitacion con codigo de un
+    # solo uso, aceptacion con permisos, revocacion y auditoria.
+    app.include_router(caregivers.router, prefix="/api/v1")
+
+    # Vinculacion de Telegram (Etapa 6, RF15): generar codigo,
+    # desvincular y consultar el estado. La confirmacion del codigo
+    # la hace el bot directamente contra el servicio (no es HTTP).
+    app.include_router(telegram_link.router, prefix="/api/v1")
 
     return app
 

@@ -6,6 +6,12 @@ Los enumerados se guardan como `VARCHAR` con `CHECK` (no como tipo
 ENUM nativo de PostgreSQL) para que una migración futura no tenga que
 alterar un tipo en toda la base.
 
+**Estado actual (Etapa 8, 2026-11-22): 14 tablas** (§3.1–§3.14).
+Head de Alembic: **`8033addb5499`** (migración 14,
+`caregiver_link_attempts`, Fase 6). Cadena lineal, sin ramas;
+**reversibilidad verificada en la Etapa 7** (downgrade/upgrade
+en base de pruebas).
+
 Convenciones: tablas en plural y `snake_case`; `created_at` y
 `updated_at` en todas las tablas de negocio; borrado lógico, no
 `DELETE`, en tablas de negocio (ver §6).
@@ -364,9 +370,9 @@ auditoría debe conservarse. La pareja (`caregiver_user_id`,
 ### 3.14. caregiver_link_attempts (intentos de invitación, antifraude)
 
 Diseño completo en `docs/database/RELACIONES_CUIDADORES.md`
-(§13). Aprobado 2026-11-11. **Su estructura queda documentada
-desde ahora; su migración física es de la Fase 6** (es el bot
-el que recibe los códigos y escribe los intentos).
+(§13). Aprobado 2026-11-11. **Migrada en la Fase 6**
+(`8033addb5499`, tabla 14; es el bot el que recibe los códigos
+y escribe los intentos).
 
 | Columna | Tipo | Restricción |
 |---|---|---|

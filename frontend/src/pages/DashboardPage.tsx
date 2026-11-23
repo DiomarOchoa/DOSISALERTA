@@ -12,17 +12,18 @@ import { formatInZone } from "../utils/user";
 import {
   BellIcon,
   CalendarIcon,
+  ChartIcon,
   ClockIcon,
   PillIcon,
 } from "../components/icons";
 
 // Inicio (andamio de la Entrega 0, saludo con nombre en la
-// Entrega 1): saludo, proxima dosis con estado vacio honesto,
+// Entrega 1): saludo, proxima dosis real (Entrega 3: GET
+// /treatments y la toma mas proxima de `upcoming_reminders`; si
+// no hay, el mensaje honesto de siempre, sin calcular tomas),
 // acciones rapidas, comprobacion de salud (logica de la Fase 1,
 // sin cambios) y avance del proyecto con los estados reales a
-// 20 nov 2026. La proxima dosis real llega con la Entrega 3:
-// GET /treatments y la toma mas proxima de `upcoming_reminders`;
-// si no hay, el mensaje honesto de siempre, sin calcular tomas.
+// 22 nov 2026.
 
 type HealthState =
   | { kind: "idle" }
@@ -202,6 +203,12 @@ export default function DashboardPage() {
           </span>
           Historial
         </Link>
+        <Link to="/estadisticas" className="quick-action">
+          <span className="qa-icon" aria-hidden="true">
+            <ChartIcon size={24} />
+          </span>
+          Estadísticas
+        </Link>
       </div>
 
       <section className="card">
@@ -241,7 +248,7 @@ export default function DashboardPage() {
           </li>
           <li>
             <span>Fase 5: motor de recordatorios.</span>
-            <span className="badge badge-pending">Pendiente</span>
+            <span className="badge badge-done">Hecha</span>
           </li>
           <li>
             <span>Fase 6: bot de Telegram.</span>
@@ -249,7 +256,7 @@ export default function DashboardPage() {
           </li>
           <li>
             <span>Fase 7: historial y estadísticas.</span>
-            <span className="badge badge-pending">Pendiente</span>
+            <span className="badge badge-done">Hecha</span>
           </li>
           <li>
             <span>Fase 8: aplicación web.</span>

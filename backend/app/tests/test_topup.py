@@ -31,6 +31,7 @@ import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import asyncpg
 import pytest
@@ -47,7 +48,7 @@ from app.models.schedules import MedicationSchedule
 from app.models.users import User
 from app.repositories import reminder_repository, schedule_repository
 from app.scheduler.topup import run_topup
-from app.services import medication_service
+from app.services import medication_service, schedule_service
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 TEST_DB = "dosisalerta_test"
@@ -488,13 +489,11 @@ async def test_topup_future_start_date(test_engine, session_factory) -> None:
 async def test_topup_dst_spring_forward(test_engine, session_factory) -> None:
     """Salto adelante (EE. UU., 8 de marzo de 2026): 02:30 no existe.
 
-    `_wall_to_utc` desplaza la hora inexistente sumando el salto
-    (02:30 + 1 h = 03:30 EDT = 07:30 UTC), no a la primera hora
-    válida (03:00 EDT = 07:00 UTC) como dice su docstring: es un
-    comportamiento heredado de la Fase 4, no del top-up. La fila
-    no se pierde ni se duplica (una por día, en el día correcto);
-    la corrección a 03:00 queda como limitación conocida para una
-    etapa posterior (ver informe de cierre).
+    `_wall_to_utc` desplaza la hora inexistente a la primera hora
+    valida (02:30 -> 03:00 EDT = 07:00 UTC), como dicen RNF04 y su
+    docstring. El comportamiento anterior sumaba el salto
+    (02:30 + 1 h = 03:30 EDT = 07:30 UTC) y chocaba con la hora
+    valida 03:30 del mismo dia (Etapa 7).
     """
     now = datetime(2026, 3, 7, 6, 0, tzinfo=timezone.utc)
     chain = await _seed_chain(
@@ -509,10 +508,32 @@ async def test_topup_dst_spring_forward(test_engine, session_factory) -> None:
     rows = await _reminder_rows(test_engine, chain["user_id"])
     assert [r[0] for r in rows] == [
         datetime(2026, 3, 7, 7, 30, tzinfo=timezone.utc),
-        datetime(2026, 3, 8, 7, 30, tzinfo=timezone.utc),
+        datetime(2026, 3, 8, 7, 0, tzinfo=timezone.utc),
         datetime(2026, 3, 9, 6, 30, tzinfo=timezone.utc),
     ]
     await _cleanup_user(test_engine, chain["user_id"])
+
+
+def test_wall_to_utc_spring_forward_no_colisiona_con_hora_valida() -> None:
+    """02:30 (inexistente) y 03:30 (valida) no dan el mismo instante.
+
+    Prueba de reproduccion del defecto de la Fase 4 (Etapa 7):
+    antes, 02:30 + 1 h = 03:30 EDT = 07:30 UTC, el mismo instante
+    que la hora valida 03:30; con dos horarios en el mismo dia,
+    una de las dos tomas se perdia por el indice unico. Ahora
+    02:30 va a la primera hora valida (03:00 EDT = 07:00 UTC).
+    """
+    tz = ZoneInfo(NEW_YORK)
+    assert schedule_service._wall_to_utc(
+        date(2026, 3, 8), time(2, 30), tz
+    ) == datetime(2026, 3, 8, 7, 0, tzinfo=timezone.utc)
+    assert schedule_service._wall_to_utc(
+        date(2026, 3, 8), time(3, 30), tz
+    ) == datetime(2026, 3, 8, 7, 30, tzinfo=timezone.utc)
+    # La hora ambigua sigue tomando la primera ocurrencia.
+    assert schedule_service._wall_to_utc(
+        date(2026, 11, 1), time(1, 30), tz
+    ) == datetime(2026, 11, 1, 5, 30, tzinfo=timezone.utc)
 
 
 async def test_topup_dst_fall_back(test_engine, session_factory) -> None:

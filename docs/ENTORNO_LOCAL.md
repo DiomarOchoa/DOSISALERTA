@@ -20,6 +20,15 @@ pruebas nuevas en verde. El contenedor
 se publica en el puerto del host **5433** por el conflicto con un
 PostgreSQL 18 nativo (ver "Problema conocido" abajo).
 
+**Estado actual (Etapa 8, 2026-11-22): Fases 1–8 COMPLETADAS,
+Fase 9 en curso.** La base de desarrollo tiene **14 tablas**;
+el head de Alembic es **`8033addb5499`** (migración 14,
+`caregiver_link_attempts`, Fase 6; cadena lineal sin ramas).
+La suite del backend da **546 pasadas + 1 fallo conocido
+preexistente** (ver §5). El frontend compila en verde (83
+módulos). Entrega del proyecto: **25 de noviembre de 2026,
+12:00**.
+
 ## 1. Requisitos del entorno
 
 - Windows 10/11 con WSL2.
@@ -88,9 +97,14 @@ del contenedor pasa a `healthy`, y las consultas devuelven
 PostgreSQL 17 con base de datos `dosisalerta` y usuario `dosisalerta`.
 
 Pruebas: desde `backend/`, con el entorno virtual activado,
-`pytest` debe dar 91 passed y 1 fallo (12 de la Fase 1, 31 de
-la Fase 2 y 49 de la Fase 3; el fallo es un test existente de
-la Fase 2 que fija la revisión anterior, ver README.md).
+`pytest` debe dar **546 pasadas y 1 fallo conocido preexistente**
+(Estado actual, 2026-11-22). El fallo es
+`test_bot_structure::test_config_ignora_un_env_ajeno_en_el_directorio_de_trabajo`:
+el token placeholder de `.env` se filtra al entorno del test.
+No es una regresión y no se oculta ni se elimina: se declara
+aquí y en el informe de la Etapa 7. En 2026-11-11 el resultado
+era 91 pasadas + 1 fallo (12 de la Fase 1, 31 de la Fase 2 y
+49 de la Fase 3); ese conteo queda como historia.
 Las pruebas de modelos necesitan PostgreSQL en marcha y usan la
 base de datos aislada `dosisalerta_test`, que la propia sesión de
 pruebas crea y migra; la base de desarrollo no recibe filas de
@@ -116,9 +130,11 @@ docker compose down        # detiene sin borrar el volumen ni los datos
 - `JWT_ALGORITHM`
 - `JWT_ACCESS_EXPIRATION_MINUTES`
 - `JWT_REFRESH_EXPIRATION_DAYS`
-- `TELEGRAM_BOT_TOKEN` (pendiente: sin token real de BotFather aún)
+- `CAREGIVER_LINK_SECRET` (implementado en la Etapa 5)
+- `TELEGRAM_BOT_TOKEN` (implementado en la Fase 6; sin token real
+  de BotFather aún — ver `docs/bot/CONFIGURACION_TELEGRAM.md`)
 - `TELEGRAM_BOT_USERNAME`
-- `TELEGRAM_LINK_SECRET`
+- `TELEGRAM_LINK_SECRET` (implementado en la Fase 6)
 
 > Reconciliación 2026-11-17 (Fase E): `VITE_API_URL` **ya no**
 > pertenece a esta lista. Desde la Fase C solo vive en
@@ -127,16 +143,21 @@ docker compose down        # detiene sin borrar el volumen ni los datos
 > `.env` raíz antiguo todavía la tiene, es una clave ignorada.
 > Las variables de arriba se dividen en **implementadas**
 > (PostgreSQL y servidor: `POSTGRES_*`, `HOST`, `PORT`, `DEBUG`,
-> `CORS_ORIGINS`; y JWT desde la Fase 3, completada el
-> 2026-11-18) y **reservadas** (Telegram para la Fase 6, que el
-> backend aún no lee); ver `.env.example`.
+> `CORS_ORIGINS`; JWT desde la Fase 3, completada el 2026-11-18;
+> `CAREGIVER_LINK_SECRET` desde la Etapa 5; `TELEGRAM_*` desde
+> la Fase 6, completada el 2026-11-22, aunque el token real de
+> BotFather sigue pendiente). Ver `.env.example` (17 variables,
+> verificado 2026-11-22).
 
-Los tres secretos (`POSTGRES_PASSWORD`, `JWT_SECRET`,
-`TELEGRAM_LINK_SECRET`) deben ser valores distintos, generados con
-un generador criptográficamente seguro (por ejemplo, Python
-`secrets`). No reutilizar el mismo secreto en dos variables.
-`POSTGRES_PASSWORD` es obligatoria: si falta o está vacía, Compose
-falla con "Falta POSTGRES_PASSWORD en .env".
+Los tres secretos (`JWT_SECRET`, `CAREGIVER_LINK_SECRET`,
+`TELEGRAM_LINK_SECRET`) deben ser valores distintos, generados
+con un generador criptográficamente seguro (por ejemplo, Python
+`secrets`), cada uno de **al menos 32 caracteres**. El backend
+**no arranca sin los tres**: la configuración los valida al
+cargar y falla si falta alguno o es demasiado corto. No
+reutilizar el mismo secreto en dos variables. Además,
+`POSTGRES_PASSWORD` es obligatoria: si falta o está vacía,
+Compose falla con "Falta POSTGRES_PASSWORD en .env".
 
 ## 8. Problemas conocidos y soluciones
 
@@ -220,13 +241,19 @@ docker compose logs postgres
 2. Instalar Docker Desktop y abrirlo (WSL2).
 3. Copiar `.env.example` a `.env` y completar los valores:
    `POSTGRES_DB=dosisalerta`, `POSTGRES_USER=dosisalerta`,
-   generar `POSTGRES_PASSWORD`, `JWT_SECRET` y
-   `TELEGRAM_LINK_SECRET` distintos, `POSTGRES_HOST=localhost`,
+   generar `POSTGRES_PASSWORD`, `JWT_SECRET`,
+   `CAREGIVER_LINK_SECRET` y `TELEGRAM_LINK_SECRET` distintos
+   (cada secreto con al menos 32 caracteres; el backend no
+   arranca sin los tres), `POSTGRES_HOST=localhost`,
    `JWT_ALGORITHM=HS256`,
    `JWT_ACCESS_EXPIRATION_MINUTES=60`,
    `JWT_REFRESH_EXPIRATION_DAYS=7`,
    `TELEGRAM_BOT_USERNAME=DosisAlertaBot`.
-   Dejar `TELEGRAM_BOT_TOKEN` vacío hasta tener el token de BotFather.
+   Dejar `TELEGRAM_BOT_TOKEN` con el placeholder hasta tener el
+   token real de BotFather (ver
+   `docs/bot/CONFIGURACION_TELEGRAM.md`; sin token real no hay
+   envío de avisos ni bot en vivo, y el programador debe seguir
+   apagado, `SCHEDULER_ENABLED=false`).
    **No** poner `VITE_API_URL` en el `.env` raíz: esa variable va
    solo en `frontend/.env` (copiar `frontend/.env.example` a
    `frontend/.env`). `POSTGRES_PORT` no es siempre 5432: primero
@@ -235,8 +262,8 @@ docker compose logs postgres
    puerto libre. `JWT_*` son variables implementadas desde la
    Fase 3 (completada el 2026-11-18): el backend las lee y
    `JWT_SECRET` es obligatorio (mínimo 32 caracteres).
-   `TELEGRAM_*` siguen reservadas (Fase 6, sin iniciar): el
-   backend no las lee todavía.
+   `CAREGIVER_LINK_SECRET` está implementado desde la Etapa 5 y
+   `TELEGRAM_*` desde la Fase 6 (completada el 2026-11-22).
 4. Verificar que `.env` está en `.gitignore` y no se sube a Git.
 5. Validar con `docker compose config --quiet`.
 6. Iniciar solo PostgreSQL con `docker compose up -d postgres`
@@ -247,4 +274,8 @@ docker compose logs postgres
    `f2a17166bccd`, 13 tablas). La Fase 3 también está completada
    en implementación y pruebas (2026-11-18): migración
    `6ea5249ec805` (UNIQUE en `refresh_tokens.token_hash`).
-   La tabla 14 `caregiver_link_attempts` NO se migra hasta la Fase 6.
+   **Estado actual (2026-11-22): Fases 1–8 completadas, Fase 9
+   en curso.** La tabla 14 `caregiver_link_attempts` se migró
+   en la Fase 6 (`8033addb5499`, head actual; cadena Alembic
+   lineal, sin ramas; downgrade verificado en base de pruebas
+   en la Etapa 7).

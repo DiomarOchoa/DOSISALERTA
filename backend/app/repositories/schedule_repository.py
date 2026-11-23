@@ -98,6 +98,37 @@ def deactivate(
     return schedule
 
 
+async def list_active_ids_by_user(
+    session: AsyncSession, user_id: int
+) -> list[int]:
+    """Ids de los horarios activos de un usuario (RF03).
+
+    Horario activo + vínculo activo + tratamiento ACTIVO, del
+    usuario dado. El cambio de zona horaria regenera sus
+    recordatorios PENDIENTE futuros con la zona nueva (RNF04).
+    La consulta solo enumera: el servicio recarga cada cadena
+    y revalida que siga activa antes de regenerar.
+    """
+    stmt = (
+        select(MedicationSchedule.id)
+        .join(
+            TreatmentMedication,
+            TreatmentMedication.id
+            == MedicationSchedule.treatment_medication_id,
+        )
+        .join(Treatment, Treatment.id == TreatmentMedication.treatment_id)
+        .where(
+            MedicationSchedule.user_id == user_id,
+            MedicationSchedule.is_active.is_(True),
+            TreatmentMedication.is_active.is_(True),
+            Treatment.status == "ACTIVO",
+        )
+        .order_by(MedicationSchedule.id)
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def list_active_for_topup(session: AsyncSession) -> list[int]:
     """Ids de los horarios que el top-up debe revisar (Fase 5, Etapa 6).
 

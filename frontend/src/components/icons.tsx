@@ -66,6 +66,18 @@ export function ClockIcon({ size = 22 }: IconProps) {
   );
 }
 
+// Grafico de barras (estilo Feather "bar-chart-2"): para las
+// estadisticas de cumplimiento.
+export function ChartIcon({ size = 22 }: IconProps) {
+  return (
+    <svg {...svgProps(size)}>
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
 export function UserIcon({ size = 22 }: IconProps) {
   return (
     <svg {...svgProps(size)}>

@@ -1,21 +1,23 @@
-// Próximas tomas (Fase 8, Entrega 4): lista agregada de solo
-// lectura con los recordatorios reales de todos los tratamientos
-// activos del usuario, ordenados cronológicamente y agrupados por
-// día local (Hoy / Mañana / fecha).
+// Próximas tomas (Fase 8, Entrega 4; acciones en Etapa 5).
+// Lista agregada con los recordatorios reales de todos los
+// tratamientos activos del usuario, ordenados cronológicamente y
+// agrupados por día local (Hoy / Mañana / fecha).
 //
 // Fuente única: una sola llamada a `GET /treatments?limit=200`
 // (sin N+1). Cada fila muestra medicamento, dosis, hora en la zona
 // horaria del usuario, estado (PENDIENTE o ENVIADA) y el nombre del
 // tratamiento como enlace a su detalle. Nunca se calcula una toma:
-// los recordatorios cubren 72 horas desde la creación o la última
-// reanudación de cada tratamiento, y sin motor (Fase 5) la lista se
-// vacía pasada esa ventana; el vacío lo dice con honestidad.
+// los recordatorios cubren 72 horas y el motor de la Fase 5 los
+// regenera en cada reanudación.
 // Una sección `upcoming_reminders` ausente (D-1, sin permiso) se
 // distingue de una lista vacía: ausente = no disponible.
-// Confirmar y posponer tomas no existen en el backend (Fase 5):
-// esta página no ofrece esas acciones.
+// Cada toma se puede confirmar («Tomada», POST
+// /reminders/{id}/confirm) o posponer 15, 30 o 60 minutos (POST
+// /reminders/{id}/postpone). Tras cada acción la lista se recarga
+// desde el backend. No hay botón «NO LO HE TOMADO»: eliminado
+// definitivamente por decisión del proyecto (2026-11-11).
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../services/api";
@@ -25,6 +27,11 @@ import {
   listTreatments,
   type Reminder,
 } from "../services/treatments";
+import {
+  confirmReminder,
+  postponeReminder,
+  type PostponeDelay,
+} from "../services/reminders";
 import UpcomingReminders from "../components/UpcomingReminders";
 import ApiErrorCard from "../components/ApiErrorCard";
 import { localDateKey, localDayLabel } from "../utils/user";
@@ -42,38 +49,76 @@ export default function RemindersPage() {
   const { user } = useAuth();
   const timezone = user?.timezone ?? "America/Bogota";
   const [state, setState] = useState<RemindersState>({ kind: "loading" });
+  const [success, setSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyReminderId, setBusyReminderId] = useState<number | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const load = useCallback(async () => {
+    setState({ kind: "loading" });
+    try {
+      const treatments = await listTreatments();
+      setState({
+        kind: "ready",
+        reminders: collectUpcomingReminders(treatments),
+        unavailable: hasUnavailableUpcoming(treatments),
+      });
+    } catch (caught) {
+      setState({
+        kind: "error",
+        error:
+          caught instanceof ApiError
+            ? caught
+            : new ApiError(0, "No se pudieron cargar las próximas tomas."),
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setState({ kind: "loading" });
-    listTreatments()
-      .then((treatments) => {
-        if (cancelled) {
-          return;
-        }
-        setState({
-          kind: "ready",
-          reminders: collectUpcomingReminders(treatments),
-          unavailable: hasUnavailableUpcoming(treatments),
-        });
-      })
-      .catch((caught) => {
-        if (cancelled) {
-          return;
-        }
-        if (caught instanceof ApiError) {
-          setState({ kind: "error", error: caught });
-        } else {
-          setState({
-            kind: "error",
-            error: new ApiError(0, "No se pudieron cargar las próximas tomas."),
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load, reloadNonce]);
+
+  async function handleConfirm(reminder: Reminder) {
+    setBusyReminderId(reminder.id);
+    setSuccess(null);
+    setActionError(null);
+    try {
+      await confirmReminder(reminder.id);
+      setSuccess(
+        `«${reminder.medication.name}» marcada como tomada.`,
+      );
+      setReloadNonce((n) => n + 1);
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo confirmar la toma.",
+      );
+    } finally {
+      setBusyReminderId(null);
+    }
+  }
+
+  async function handlePostpone(reminder: Reminder, delay: PostponeDelay) {
+    setBusyReminderId(reminder.id);
+    setSuccess(null);
+    setActionError(null);
+    try {
+      await postponeReminder(reminder.id, delay);
+      setSuccess(
+        `«${reminder.medication.name}» pospuesta ${delay} minutos.`,
+      );
+      setReloadNonce((n) => n + 1);
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo posponer la toma.",
+      );
+    } finally {
+      setBusyReminderId(null);
+    }
+  }
 
   if (state.kind === "loading") {
     return (
@@ -121,10 +166,13 @@ export default function RemindersPage() {
       </div>
       <p className="hint">
         Tus dosis programadas de las próximas 72 horas, en tu zona
-        horaria. Los recordatorios se generan al crear o reanudar un
-        tratamiento; sin motor de recordatorios (Fase 5), la lista se
-        vacía pasada esa ventana.
+        horaria. Confirma cada toma cuando la tomes o posponla 15, 30
+        o 60 minutos si aún no puedes tomarla.{" "}
+        <Link to="/calendario">Ver el calendario del mes</Link>.
       </p>
+
+      {success ? <p className="success-box">{success}</p> : null}
+      {actionError ? <p className="error">{actionError}</p> : null}
 
       {state.unavailable ? (
         <div className="warn-box">
@@ -172,6 +220,9 @@ export default function RemindersPage() {
             reminders={reminders}
             timezone={timezone}
             showTreatment
+            onConfirm={handleConfirm}
+            onPostpone={handlePostpone}
+            busyReminderId={busyReminderId}
           />
         </section>
       ))}

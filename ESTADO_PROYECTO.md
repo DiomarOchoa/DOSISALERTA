@@ -1,17 +1,19 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-21 — Fases 4 y 5 COMPLETADAS
-(sin commitear todavía).** Fase 4 publicada en `main` en
-`b5c27e6` (2026-11-20). Fase 5 (Etapas 1–6) implementada y
-verificada el 2026-11-21, pendiente de commit. Commits en la rama
-`main`: `2bc7ec8` (implementación Fase 1, 51 archivos, 2026-11-04),
-`77d0d5c` (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
+Última actualización: **2026-11-22 — Fases 6, 7 y 8 COMPLETADAS.
+Fase 9 (auditoría y entrega) EN CURSO.** Fase 4 publicada en
+`main` en `b5c27e6` (2026-11-20). Fase 5 implementada y verificada
+el 2026-11-21. Fases 6–8 completadas el 2026-11-22 (merge de la
+Fase 8 en `2daf352`). Commits en la rama `main`: `2bc7ec8`
+(implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
+(auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
 (documentación de cuidadores, auditoría y IA, 7 archivos,
 2026-11-11), `017538a` (Fase 3, 27 archivos, 2026-11-18),
 `770a6c8` (docs, 3 archivos, 2026-11-18) y `b5c27e6` (Fase 4,
-17 archivos, 2026-11-20).
-HEAD: `b5c27e6174e86e7d0107ea130c0c9c19a3bfd6b9`.
+17 archivos, 2026-11-20), más los commits de las Fases 5–8
+(ver "Fase actual").
+HEAD: `2daf352b2a948d9378f3c5392a5882bc75af0a49`.
 
 ## Fase actual
 
@@ -61,29 +63,71 @@ verificado funcionando en el contenedor `dosisalerta-postgres`
 (ver `docs/ENTORNO_LOCAL.md` y el problema 4 de "Problemas
 pendientes", resuelto). La Fase 2 se autorizó expresamente el
 2026-11-11 y se completó el mismo día: modelos SQLAlchemy 2.x
-asíncronos de las 13 tablas (11 originales + `caregiver_links` y
-`caregiver_audit_log`; `caregiver_link_attempts` NO se implementa
-hasta la Fase 6), migración inicial Alembic `f2a17166bccd`
-aplicada en PostgreSQL local, 31 pruebas de modelos contra
-PostgreSQL real en verde (suite completa: 43 pasadas) y
+asíncronos de las 13 tablas de entonces (11 originales +
+`caregiver_links` y `caregiver_audit_log`; `caregiver_link_attempts`
+llegó en la Fase 6 como tabla 14), migración inicial Alembic
+`f2a17166bccd` aplicada en PostgreSQL local, 31 pruebas de modelos
+contra PostgreSQL real en verde (suite completa: 43 pasadas) y
 `alembic revision --autogenerate` sin diferencias entre modelos y
 esquema.
 
-## Estado del bot de Telegram (sin publicar, 2026-11-17)
+**FASE 6: Bot de Telegram — COMPLETADA el 2026-11-22.**
+Vinculación por código de un solo uso (servicio + 3 endpoints
+`/telegram`, 11 pruebas), migración `8033addb5499`
+(`caregiver_link_attempts`, tabla 14, aplicada), bot reescrito
+sobre servicios reales (7 comandos, 29 callbacks, 1 handler de
+texto; build con 37 handlers), botones YA LO TOMÉ / RECORDARME
+DESPUÉS en los avisos (RF17), 19 pruebas de flujo (incl. la
+aceptación Fase 6: confirmar desde el botón visible en el
+historial de la API). Suite completa: 545 pasadas + 1 fallo
+conocido. Sin envío vivo: el token sigue siendo un marcador y el
+programador está apagado por decisión expresa de Diomar.
+Informe: `INFORME_ETAPA6_TELEGRAM.md`.
 
-El esqueleto de demostración del bot existe completo solo en el
-árbol de trabajo local, sin commit ni push: `backend/app/bot/`
-(`main.py`, `config.py`, handlers, keyboards, servicios con datos
-ficticios), `backend/app/tests/test_bot_structure.py` y
-`docs/bot/ESTRUCTURA_BOT.md`. Sus cuatro correcciones de la
-auditoría del 2026-11-11 están aplicadas: búsqueda del `.env`
-desde el archivo del paquete en `config.py` con su prueba de
-regresión, `script_location = %(here)s/alembic` en
-`backend/alembic.ini`, y `docs/bot/ESTRUCTURA_BOT.md` actualizada.
-Además, sin commit: `backend/app/bot/__init__.py` reescrito como
-demostración y `python-telegram-bot==22.8` añadido a
-`backend/pyproject.toml`. No es la integración completa de la
-Fase 6: no toca PostgreSQL, ni JWT, ni servicios reales.
+**FASE 7: Historial y estadísticas — COMPLETADA el 2026-11-21
+(plan) y verificada el 2026-11-22.** Plan técnico de 1.615 líneas
+con las once decisiones D-1 a D-11 resueltas por Diomar (gracia
+de 30 min inclusiva; TOMADA sin toma cuenta como tardía;
+canceladas con motivo conocido fuera del denominador, unknown
+dentro; historial con los 8 estados). Endpoints
+`GET /reminders/history` y `GET /stats/compliance` con
+agrupación día/semana/mes/medicamento y 122 pruebas formales.
+
+**FASE 8: Aplicación web React — COMPLETADA el 2026-11-22
+(merge `2daf352`).** Entregas 0–4 verificadas en vivo contra la
+API real y en el navegador Edge del PC; Etapas 4–6 de la
+Entrega 5: navegación e integración, funcionalidades pendientes
+(reactivar medicamentos, confirmar/posponer desde la web,
+cuidadores con permisos, cambio de zona horaria, calendario
+RF10) y Telegram (Fase 6). 12 rutas, build en verde (83 módulos).
+Informes: `INFORME_ETAPA0_VERIFICACION_CONTRATOS.md` a
+`INFORME_ETAPA6_TELEGRAM.md`.
+
+**FASE 9: Auditoría y entrega — EN CURSO (2026-11-22).**
+Etapa 7 completada: suite 546 pasadas + 1 fallo conocido,
+corrección DST de `_wall_to_utc` (RNF04), 7 harnesses web en
+verde, auditoría de permisos con un defecto real encontrado y
+corregido (500 con `patient_id` inexistente → 403, con prueba
+de regresión), ciclo de la migración 14 verificado en la BD de
+pruebas. Informe: `INFORME_ETAPA7_CALIDAD.md`. Etapa 8
+(documentación) en curso; después, auditoría integral y el
+informe final.
+
+## Estado del bot de Telegram (2026-11-22)
+
+El bot está implementado sobre servicios reales y probado (ver
+"Fase actual", Fase 6): `backend/app/bot/` con 7 comandos, 29
+callbacks y 1 handler de texto, `backend/app/services/
+telegram_link_service.py`, router `/telegram` y migración
+`8033addb5499`. Lo que sigue pendiente: el **token real de
+BotFather** (en `.env` sigue el marcador), la decisión sobre
+los comandos de BotFather sin manejador (13 registrados,
+lista exacta por confirmar), y encender el
+programador (`SCHEDULER_ENABLED=false` por defecto). El bot
+nunca ha corrido como proceso persistente ni ha enviado un
+aviso real. La vinculación web desde el perfil no existe
+todavía (Fase 8); crear tratamientos desde el bot tampoco
+(RF18 parcial).
 
 ## Objetivos completados (Fase 0)
 
@@ -250,10 +294,11 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
 ## Problemas pendientes (no ocultar, resolver antes o en la Fase 1)
 
 1. **Nombres de los integrantes:** RESUELTO el 2026-11-18. El equipo
-   son Diomar Ochoa (líder), Jaider Toro Camacho, Roderic y Maisha.
-   Quedan por confirmar: apellidos de Roderic y Maisha, cuentas de
-   GitHub, disponibilidad y experiencia (ver plan de continuación
-   §5.3). Reparto de commits en `PLAN_CONTINUACION_FASES_4_9.md` §5.
+   son Diomar Ochoa (líder), Jaider Toro Camacho, Roderic Gallardo
+   y Maisha. Quedan por confirmar: apellido de Maisha,
+   disponibilidad y experiencia. Requisito 14 cumplido por los
+   cuatro (5 commits cada uno: Diomar 28, Jaider 5, Roderic 5,
+   Maisha 5).
 2. **Repositorio público — RESUELTO:** creado el 2026-11-04 en
    https://github.com/DiomarOchoa/DOSISALERTA y publicado ese mismo
    día desde el PC del equipo: `git init -b main`, remoto `origin`
@@ -302,12 +347,14 @@ Detalle y alternativas rechazadas: `docs/decisions/DECISIONES_TECNICAS.md`.
    exactamente igual a la bloqueada).
 6. **Token de Telegram:** el bot `@DosisAlertaBot` ya existe (creado con
    @BotFather), pero su token real no está configurado en el proyecto.
-   No debe solicitarse, compartirse ni guardarse antes de la Fase 6.
-7. **Calendario ajustado:** quedan 7 días hasta el 25 de noviembre de
-   2026 a las 12:00 m (actualizado el 2026-11-18; eran 8 días el
-   2026-11-17). El roadmap propone fechas por fase con el 24
-   para ensayo; cualquier retraso se recorta de pulido de la web,
-   nunca de persistencia, seguridad o pruebas del motor.
+   Es el único bloqueo para el envío vivo de avisos y para que el
+   bot corra como proceso persistente. No debe solicitarse,
+   compartirse ni guardarse fuera de `.env`.
+7. **Calendario ajustado:** quedan 3 días hasta el 25 de noviembre de
+   2026 a las 12:00 m (actualizado el 2026-11-22). La Fase 9 está
+   protegida el martes 24 para ensayo; cualquier retraso se recorta
+   de pulido de la web, nunca de persistencia, seguridad o pruebas
+   del motor.
 8. **Zona horaria por defecto:** se propone `America/Bogota` como valor
    inicial configurable por usuario, no como regla fija. Confirmarlo en
    la Fase 2 (es un campo en `users.timezone`, no código fijo).
@@ -380,12 +427,13 @@ inserciones, 35 eliminaciones, push `77d0d5c..819c44b` en
   de "Problemas pendientes", resuelto); Docker Desktop estaba
   apagado el 2026-11-17, sin verificación en vivo ese día.
 
-## Próxima fase (SOLO cuando se autorice)
+## Próxima fase
 
-**FASE 4: Gestión de medicamentos y tratamientos.** Ver
-criterios de aceptación completos en
-`docs/architecture/ROADMAP.md`, sección Fase 4. La Fase 3 ya
-está completada en implementación y pruebas (ver "Fase actual"):
-autenticación JWT con registro, login, refresh con rotación
-atómica, logout y `current_user`, y migración UNIQUE en
-`refresh_tokens.token_hash`.
+**FASE 9: Auditoría integral y preparación de la entrega.**
+Etapa 7 completada (ver "Fase actual"); Etapa 8
+(documentación) en curso; después, auditoría integral,
+informe de cumplimiento (RF01–RF22, RNF01–RNF08, requisitos
+oficiales 1–15), revisión de secretos, build y suite finales,
+material de sustentación en `docs/presentation/` y el informe
+final para la revisión de Diomar. Entrega: 25 de noviembre de
+2026, 12:00 m.

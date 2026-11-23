@@ -10,6 +10,9 @@
 //   POST /auth/refresh  -> 200 { access_token, refresh_token, token_type }
 //   POST /auth/logout   -> 200 { detail: "Sesión cerrada" }
 //   GET  /auth/me       -> 200 UserResponse (requiere Authorization: Bearer <token>)
+//   PATCH /auth/me      -> 200 UserResponse (RF03, Etapa 5: cambia la
+//                          zona horaria; un cambio regenera solo los
+//                          recordatorios PENDIENTE futuros, RNF04)
 // Los tokens se guardan en localStorage (decision de la Fase 3 para
 // la web; nunca se guardan en el repo). El access token dura 60 min;
 // el refresh token, 7 dias, y se rota en cada renovacion.
@@ -97,6 +100,19 @@ export async function logout(refreshToken: string): Promise<void> {
 
 export async function fetchMe(): Promise<UserResponse> {
   return request<UserResponse>("/auth/me", { auth: true });
+}
+
+// RF03 (Etapa 5): cambia la zona horaria del usuario autenticado.
+// Un cambio de zona regenera unicamente los recordatorios PENDIENTE
+// futuros (RNF04). Devuelve el perfil actualizado.
+export async function updateProfile(input: {
+  timezone: string;
+}): Promise<UserResponse> {
+  return request<UserResponse>("/auth/me", {
+    method: "PATCH",
+    body: input,
+    auth: true,
+  });
 }
 
 // Restaura la sesion guardada: usa el access token; si esta expirado,

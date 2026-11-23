@@ -28,8 +28,10 @@
 // - ScheduleCreate: frequency DIARIO | DIAS_SEMANA | INTERVALO_DIAS;
 //   DIAS_SEMANA exige days_of_week (0=lunes..6); INTERVALO_DIAS exige
 //   interval_days >= 1; times >= 1 hora.
-// - NO existe endpoint para editar horarios ni para confirmar o
-//   posponer tomas. `dose_amount` llega como numero JSON.
+// - NO existe endpoint para editar horarios. Confirmar y
+//   posponer tomas viven en services/reminders.ts (Etapa 5):
+//   POST /reminders/{id}/confirm y POST /reminders/{id}/postpone.
+// - `dose_amount` llega como numero JSON.
 // - `medications` y `upcoming_reminders` son secciones opcionales
 //   (D-1): pueden no venir en la respuesta.
 // - `patient_id` es solo API: la web no lo expone.

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.telegram import TelegramAccount
 
-__all__ = ["get_linked_chat_id"]
+__all__ = ["get_linked_chat_id", "get_by_chat_id"]
 
 
 async def get_linked_chat_id(session: AsyncSession, user_id: int) -> int | None:
@@ -19,6 +20,27 @@ async def get_linked_chat_id(session: AsyncSession, user_id: int) -> int | None:
     stmt = select(TelegramAccount.chat_id).where(
         TelegramAccount.user_id == user_id,
         TelegramAccount.status == "VINCULADA",
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_by_chat_id(
+    session: AsyncSession, chat_id: int
+) -> TelegramAccount | None:
+    """La cuenta VINCULADA de un `chat_id`, con su usuario, o None.
+
+    Es la resolucion de identidad del bot (RF19): cada comando o
+    callback exige vinculo activo; sin el, el bot no revela datos.
+    Un `chat_id` revocado o pendiente no resuelve a ningun usuario.
+    """
+    stmt = (
+        select(TelegramAccount)
+        .where(
+            TelegramAccount.chat_id == chat_id,
+            TelegramAccount.status == "VINCULADA",
+        )
+        .options(selectinload(TelegramAccount.user))
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()

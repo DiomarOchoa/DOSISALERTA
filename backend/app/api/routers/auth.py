@@ -21,6 +21,7 @@ from app.schemas.auth import (
     UserRegister,
     UserRegisterResponse,
     UserResponse,
+    UserUpdate,
 )
 from app.services import auth_service
 
@@ -74,3 +75,17 @@ async def me(
 ) -> UserResponse:
     """Devuelve el perfil del usuario autenticado (200)."""
     return UserResponse.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    data: UserUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> UserResponse:
+    """Actualiza el perfil del usuario autenticado (200).
+
+    RF03: cambia la zona horaria. Un cambio de zona regenera
+    unicamente los recordatorios PENDIENTE futuros (RNF04).
+    """
+    return await auth_service.update_profile(session, current_user, data)

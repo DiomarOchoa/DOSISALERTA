@@ -238,7 +238,7 @@ button:disabled {
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   margin-top: 1rem;
 }
@@ -575,6 +575,16 @@ a.tab {
   text-decoration: none;
 }
 
+/* Acciones rápidas del Inicio: con cinco, a 390 px no caben en
+   una fila (las cuatro ya iban justas). Hasta 640 px la
+   cuadrícula pasa a tres columnas — tres arriba y dos abajo —,
+   con letra legible; en escritorio siguen las cinco en una fila. */
+@media (max-width: 640px) {
+  .quick-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Pantallas estrechas. */
 
 @media (max-width: 480px) {
@@ -582,12 +592,6 @@ a.tab {
     display: none;
   }
 
-  /* Acciones rápidas del Inicio: a 390 px las cuatro no caben con
-     el tamaño base (cada elemento exige su ancho mínimo y la
-     cuadrícula desborda ~29 px). Se les permite encoger, con menos
-     separación, menos relleno lateral y letra algo menor, para que
-     las cuatro etiquetas quepan en una fila sin recortarse. Solo
-     afecta a pantallas de 480 px o menos; el escritorio no cambia. */
   .quick-actions {
     gap: 0.5rem;
   }
@@ -595,7 +599,7 @@ a.tab {
   .quick-action {
     min-width: 0;
     padding: 0.75rem 0.25rem;
-    font-size: 0.65rem;
+    font-size: 0.8rem;
   }
 }
 
@@ -930,6 +934,174 @@ a.tab {
   margin: 0;
 }
 
+/* Acciones de toma (Etapa 5): confirmar y posponer en cada fila. */
+.upcoming-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.upcoming-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.delay-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Cuidadores (Etapa 5): permisos y vinculos. */
+.caregiver-block {
+  margin-top: 1rem;
+}
+
+.perm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.perm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.perm-row input[type="checkbox"] {
+  margin-top: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--acento);
+  flex-shrink: 0;
+}
+
+.perm-label {
+  display: block;
+  font-weight: 600;
+}
+
+.perm-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Calendario (Etapa 5, RF10): mes, semanas de lunes a domingo. */
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.calendar-nav h3 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding-bottom: 0.25rem;
+}
+
+.calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 3.25rem;
+  padding: 0.4rem 0.2rem;
+  border: 1px solid var(--borde);
+  border-radius: 0.6rem;
+  background: var(--superficie);
+  color: var(--texto);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.calendar-day.empty {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.calendar-day.today {
+  border-color: var(--acento);
+  border-width: 2px;
+}
+
+.calendar-day.selected {
+  background: var(--acento-suave);
+}
+
+.calendar-day-number {
+  font-weight: 600;
+}
+
+.calendar-dots {
+  display: flex;
+  gap: 0.15rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dot-taken {
+  background: var(--ok);
+}
+
+.dot-pending {
+  background: #d97706;
+}
+
+.dot-lost {
+  background: var(--error);
+}
+
+.dot-cancelled {
+  background: #6b7280;
+}
+
+.dot-other {
+  background: #8b5cf6;
+}
+
 
 
 /* Próximas tomas (Fase 8, Entrega 4). */
@@ -974,4 +1146,165 @@ a.tab {
 
 .nav-item span {
   white-space: nowrap;
+}
+
+/* Historial de tomas (Fase 8, Entrega 5). */
+
+.history-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Pospuesta: teal, distinta del ambar de Enviada/Enviando. */
+.badge-postponed {
+  background: var(--acento-suave);
+  color: var(--acento-oscuro);
+}
+
+/* Perdida y Fallida: rojo de error. */
+.badge-lost {
+  background: #fdecea;
+  color: var(--error);
+}
+
+/* Cancelada: gris, como Pendiente (ambas son tomas sin
+   desenlace); la etiqueta las distingue. */
+.badge-cancelled {
+  background: #eef2f1;
+  color: var(--muted);
+}
+
+.load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Estadisticas de cumplimiento (Fase 8, Entrega 5). */
+
+.stats-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stat-card {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+}
+
+.stat-card-hero {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.stat-value {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-card-hero .stat-value {
+  font-size: 2.25rem;
+}
+
+/* Grafica de barras CSS: etiqueta y valor arriba, barra abajo. */
+
+.chart-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.chart-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.chart-sub {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.chart-value {
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.chart-value-muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.chart-track {
+  background: #eef2f1;
+  border-radius: 999px;
+  height: 0.75rem;
+  overflow: hidden;
+}
+
+.chart-bar {
+  display: block;
+  height: 100%;
+  background: var(--acento);
+  border-radius: 999px;
+}
+
+.reason-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.reason-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.reason-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }

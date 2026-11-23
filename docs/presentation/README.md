@@ -6,3 +6,10 @@ pueda demostrar con datos reales.
 
 No se crea material de presentación en la Fase 0: presentar capturas o
 flujos de un sistema que aún no existe sería engañoso para la evaluación.
+
+**Estado actual (Etapa 8, 2026-11-22):** el guion de la sustentación
+de 10 minutos ya existe aquí (`GUION_SUSTENTACION.md`): estructura
+minuto a minuto, guion de la demo en vivo (web + bot, con ramas
+con/sin token real), decisiones D-1 a D-11, limitaciones honestas,
+preguntas difíciles y reparto por integrante. Las diapositivas, si
+las hay, se preparan en la Fase 9.

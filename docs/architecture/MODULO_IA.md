@@ -9,6 +9,19 @@ Estado del documento: 2026-11-11. Fase 1 cerrada (commit
 `819c44b`); Fase 2 sin autorizar y sin iniciar; entrega del
 proyecto el 25 de noviembre de 2026 a las 12:00.
 
+**Estado actual (Etapa 8, 2026-11-22): Fases 1–8 COMPLETADAS,
+Fase 9 en curso.** El módulo de IA descrito en este documento
+sigue siendo **propuesta post-entrega (Fase 10)**: no forma
+parte de la entrega del 25 de noviembre ni de la sustentación.
+Las menciones a "las 11 tablas/entidades de la Fase 2" en este
+documento se refieren a las 11 entidades originales de esa
+migración; el modelo total actual es de **14 tablas** (las 11
+originales + `caregiver_links` y `caregiver_audit_log` en la
+misma migración de la Fase 2, y `caregiver_link_attempts` en
+la Fase 6, head `8033addb5499`). Ver §13 para el uso de IA
+como ayuda durante el desarrollo (Fases 4–9), que es distinto
+del módulo de IA del producto.
+
 ## 0. Qué es decisión oficial y qué es propuesta
 
 **Decisión oficial del equipo (2026-11-11, fuera de la Fase 0):**
@@ -629,6 +642,18 @@ flowchart TD
 
 ## 11. Dependencias pendientes
 
+> **Nota (Etapa 8, 2026-11-22):** todas las dependencias de
+> las Fases 2–8 de esta tabla ya están cerradas (Fases 1–8
+> completadas; el modelo tiene 14 tablas, la autenticación JWT,
+> los tratamientos, el motor, el bot, el historial, las
+> estadísticas y la web existen y están probados: suite 546
+> pasadas + 1 fallo conocido). La tabla se conserva con su
+> estado de 2026-11-11 como historia. Siguen pendientes solo
+> las dos últimas filas propias de la implementación de IA
+> (decisión sobre consentimiento; clave de Gemini y modelo de
+> Ollama), que corresponden a la Fase 10 propuesta, no a la
+> entrega actual.
+
 | Dependencia | Fase que la cierra | Estado 2026-11-11 |
 |---|---|---|
 | Modelos SQLAlchemy de las 11 tablas + Alembic | F2 | Sin autorizar |
@@ -657,3 +682,49 @@ flowchart TD
   `backend/pyproject.toml`, `.env.example`
 - Verificación en el PC el 2026-11-11: PostgreSQL 17.11
   funcionando; sin dependencias de IA instaladas; sin claves de API.
+
+## 13. Uso de IA durante el desarrollo (Fases 4–9)
+
+> Esta sección **no** describe el módulo de IA del producto
+> (§1–§12, propuesta de Fase 10, post-entrega). Describe el uso
+> de IA como **herramienta de ayuda al equipo durante el
+> desarrollo** de las Fases 4–9. Se declara aquí para que la
+> sustentación pueda responder con honestidad qué hizo la IA y
+> qué hizo el equipo.
+
+### 13.1. Qué hizo la IA
+
+- Ayudó a **escribir código, pruebas y documentación** en las
+  Fases 0–9 (servicios, routers, componentes React, pruebas
+  pytest y harnesses jsdom, y los documentos de cada fase).
+- Ayudó a **verificar el trabajo ejecutándolo de verdad**:
+  suites de pruebas, builds del frontend, llamadas reales a la
+  API y renders reales de los componentes contra la base de
+  desarrollo. Nada se dio por hecho sin ejecutarlo.
+
+### 13.2. Qué hizo el equipo (y qué no hizo la IA)
+
+- El equipo **revisa y defiende cada módulo**: cada decisión
+  (D-1 a D-11, cuidadores v1, RF18 parcial, reglas de
+  estadísticas) la tomó Diomar y quedó registrada antes de
+  implementarse. La IA propuso; el equipo decidió.
+- La IA **nunca** recibió credenciales: ningún token,
+  contraseña ni secreto se compartió con ella. Los secretos
+  viven solo en `.env`, fuera del repositorio.
+- La IA **nunca** hizo commits, push ni despliegues por su
+  cuenta: cada operación de Git la autoriza Diomar y la ejecuta
+  él mismo desde su PC.
+
+### 13.3. Regla de honestidad
+
+- Lo que no está probado se declara como **no probado**, no
+  como terminado. El fallo conocido preexistente de la suite
+  (1 de 547) se declara en los informes y en
+  `docs/ENTORNO_LOCAL.md`; las limitaciones (RF18 parcial, sin
+  interfaz web de vinculación de Telegram, token real pendiente)
+  se declaran en el informe de cada etapa y en el guion de
+  sustentación (`docs/presentation/GUION_SUSTENTACION.md`).
+- El módulo de IA del producto (§1–§12) sigue sin existir
+  como código: es propuesta de Fase 10, después de la entrega
+  del 25 de noviembre de 2026. Ninguna funcionalidad de la
+  entrega depende de él.

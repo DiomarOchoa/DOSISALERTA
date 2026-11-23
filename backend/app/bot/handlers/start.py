@@ -1,8 +1,8 @@
-"""Comando /start: bienvenida y menu principal.
+"""Comando /start: bienvenida y menu principal (Fase 6).
 
-El usuario nunca necesita escribir comandos para usar el bot:
-``/start`` es solo la puerta de entrada. A partir de ahi todo
-se hace con botones.
+Si el chat no esta vinculado, el usuario recibe las instrucciones
+de vinculacion (RF15/RF19). Si esta vinculado, la bienvenida con
+su nombre y el menu principal.
 """
 
 from __future__ import annotations
@@ -10,16 +10,16 @@ from __future__ import annotations
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.bot.context import linked_session
 from app.bot.keyboards import build_main_menu
-from app.bot.services.mock_data import DEMO_NOTICE
 
 
-def render_welcome() -> tuple[str, object]:
+def render_welcome(user_name: str | None) -> tuple[str, object]:
     """Texto de bienvenida y teclado del menu principal."""
+    greeting = f"¡Hola, {user_name}!" if user_name else "¡Hola!"
     text = (
-        "¡Hola! Soy DosisAlerta, tu ayudante de medicamentos.\n\n"
-        "👇 Elige una opción:\n\n"
-        f"{DEMO_NOTICE}"
+        f"{greeting} Soy DosisAlerta, tu ayudante de medicamentos.\n\n"
+        "👇 Elige una opción:"
     )
     return text, build_main_menu()
 
@@ -28,5 +28,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Responde a /start con la bienvenida y el menu principal."""
     if update.message is None:
         return
-    text, keyboard = render_welcome()
-    await update.message.reply_text(text, reply_markup=keyboard)
+    async with linked_session(update) as (session, user):
+        if session is None or user is None:
+            return
+        text, keyboard = render_welcome(user.name)
+        await update.message.reply_text(text, reply_markup=keyboard)

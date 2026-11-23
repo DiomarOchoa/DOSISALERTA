@@ -14,10 +14,12 @@ python-telegram-bot y traduce cada llamada a ``SendResult``:
   confirmacion que registrar).
 
 El texto del aviso sigue el formato del spec §3.1 (medicamento,
-dosis, hora en la zona del usuario, tratamiento) y **no lleva
-botones**: los botones YA LO TOMÉ / RECORDARME DESPUÉS necesitan
-los manejadores de la Fase 6; enviarlos ahora dejaría botones
-muertos.
+dosis, hora en la zona del usuario, tratamiento) y lleva los
+botones de la Fase 6 (RF17): "✅ YA LO TOMÉ" y "⏰ RECORDARME
+DESPUÉS", con el mismo ``callback_data`` que los manejadores
+de ``app.bot.handlers.intake`` (``intake:confirm:<id>`` e
+``intake:postpone:<id>``). El teclado se construye aquí mismo
+para que el scheduler no dependa de los handlers del bot.
 
 El Bot se inyecta por constructor (asi las pruebas pasan un
 doble sin tocar la red) y ``from_config()`` construye el Bot
@@ -33,7 +35,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import (
     BadRequest,
     Forbidden,
@@ -46,9 +48,32 @@ from telegram.error import (
 from app.bot.config import BotConfig
 from app.scheduler.sender import SendPayload, SendResult
 
-__all__ = ["TelegramSender", "build_reminder_text", "day_label"]
+__all__ = ["TelegramSender", "build_reminder_text", "day_label", "reminder_keyboard"]
 
 logger = logging.getLogger(__name__)
+
+
+def reminder_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
+    """Botones del aviso (RF17): confirmar o posponer la toma.
+
+    El mismo ``callback_data`` que los manejadores de
+    ``app.bot.handlers.intake``; los botones solo funcionan con
+    los handlers de la Fase 6 registrados.
+    """
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "✅ YA LO TOMÉ",
+                    callback_data=f"intake:confirm:{reminder_id}",
+                ),
+                InlineKeyboardButton(
+                    "⏰ RECORDARME DESPUÉS",
+                    callback_data=f"intake:postpone:{reminder_id}",
+                ),
+            ]
+        ]
+    )
 
 
 def day_label(when: date, today: date) -> str:
@@ -108,7 +133,9 @@ class TelegramSender:
     async def send(self, payload: SendPayload) -> SendResult:
         try:
             message = await self._bot.send_message(
-                chat_id=payload.chat_id, text=payload.text
+                chat_id=payload.chat_id,
+                text=payload.text,
+                reply_markup=reminder_keyboard(payload.reminder_id),
             )
         except RetryAfter as exc:
             return SendResult(

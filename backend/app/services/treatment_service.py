@@ -129,9 +129,16 @@ async def _reject_caregiver_mutation(
     del actor, la denegacion se audita (`ACCESS_DENIED`, con
     commit inmediato como hace el helper). Si no viene o es el
     propio actor, el actor es el dueno y no se rechaza.
+
+    Si el paciente no existe no se puede auditar (la FK de
+    `caregiver_audit_log.patient_user_id` daria 500): se deniega
+    con 403 sin registro, igual que `resolve_actor`.
     """
     if patient_id is None or patient_id == actor.id:
         return
+    patient = await session.get(User, patient_id)
+    if patient is None:
+        raise HTTPException(status_code=403, detail=_FORBIDDEN_ERROR)
     await caregiver_access.audit_denied(
         session,
         caregiver_id=actor.id,

@@ -1,5 +1,6 @@
-"""Tablas ``caregiver_links`` y ``caregiver_audit_log``
-(`docs/database/RELACIONES_CUIDADORES.md` §4–§5 y
+"""Tablas ``caregiver_links``, ``caregiver_audit_log`` y
+``caregiver_link_attempts``
+(`docs/database/RELACIONES_CUIDADORES.md` §4–§5 y §13,
 `docs/database/MODELO_DATOS.md` §3.12–§3.13).
 
 - ``caregiver_links``: el vinculo paciente–cuidador. Un paciente
@@ -10,6 +11,9 @@
   cuando presenta el codigo.
 - ``caregiver_audit_log``: auditoria de acciones del cuidador.
   Solo INSERT desde la aplicacion: nunca UPDATE ni DELETE.
+- ``caregiver_link_attempts``: antifraude de las invitaciones
+  (tabla 14, Fase 6). Cada intento de codigo se registra por
+  ``chat_id`` antes de validar, incluso sin invitacion conocida.
 
 Reglas criticas (auditoria 2026-11-11, decisiones D22–D27):
 
@@ -285,4 +289,41 @@ Index(
     "idx_caregiver_audit_caregiver",
     CaregiverAuditLog.__table__.c.caregiver_user_id,
     CaregiverAuditLog.__table__.c.created_at.desc(),
+)
+
+
+class CaregiverLinkAttempt(Base):
+    """Intento de codigo de invitacion de cuidador (antifraude).
+
+    Espejo de `telegram_link_attempts` (RELACIONES §13, aprobada
+    2026-11-11; tabla 14, su migracion es de la Fase 6). Sin FK a
+    users: se registra por `chat_id`, incluso para intentos de
+    chats no vinculados o de codigos que no corresponden a ninguna
+    invitacion. Cada intento se registra antes de validar.
+    """
+
+    __tablename__ = "caregiver_link_attempts"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    attempted_code_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+
+# Indices (chat_id, attempted_at DESC) y (attempted_code_hash,
+# attempted_at DESC) para el limite de intentos (RELACIONES §13.3).
+Index(
+    "idx_caregiver_link_attempts_chat",
+    CaregiverLinkAttempt.__table__.c.chat_id,
+    CaregiverLinkAttempt.__table__.c.attempted_at.desc(),
+)
+Index(
+    "idx_caregiver_link_attempts_hash",
+    CaregiverLinkAttempt.__table__.c.attempted_code_hash,
+    CaregiverLinkAttempt.__table__.c.attempted_at.desc(),
 )

@@ -55,11 +55,26 @@ def _wall_to_utc(day: date, wall: time, tz: ZoneInfo) -> datetime:
     naive = datetime.combine(day, wall)
     aware = naive.replace(tzinfo=tz)
     back = aware.astimezone(timezone.utc).astimezone(tz).replace(tzinfo=None)
-    if back != naive:
-        # La hora no existe (salto DST): `back` es la primera
-        # hora valida tras el salto; desplazar hasta ella.
-        aware = (naive + (back - naive)).replace(tzinfo=tz)
-    return aware.astimezone(timezone.utc)
+    if back == naive:
+        return aware.astimezone(timezone.utc)
+    # La hora no existe (salto DST): avanzar minuto a minuto hasta
+    # la primera hora valida. El comportamiento anterior sumaba el
+    # salto (02:30 + 1 h = 03:30), que chocaba con la hora valida
+    # 03:30 del mismo dia: dos horas de pared distintas daban el
+    # mismo instante UTC y una de las dos tomas se perdia por el
+    # indice unico. La primera hora valida (03:00) no colisiona
+    # con ninguna hora programada valida.
+    gap = back - naive
+    candidate = naive
+    for _ in range(60 * 25 + 1):
+        candidate += timedelta(minutes=1)
+        aware = candidate.replace(tzinfo=tz)
+        back = aware.astimezone(timezone.utc).astimezone(tz).replace(tzinfo=None)
+        if back == candidate:
+            return aware.astimezone(timezone.utc)
+    # No deberia pasar (ningun salto real supera 25 h): conservar
+    # el comportamiento anterior como ultimo recurso.
+    return (naive + gap).replace(tzinfo=tz).astimezone(timezone.utc)
 
 
 def _matches_frequency(day: date, schedule: MedicationSchedule) -> bool:

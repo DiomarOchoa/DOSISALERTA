@@ -4,6 +4,16 @@ Fase 0. Este documento es la referencia: si otro documento lo
 contradice, este manda y la contradicción se corrige, no se convive
 con ella.
 
+**Estado actual (Etapa 8, 2026-11-22): Fases 1–8 COMPLETADAS,
+Fase 9 en curso.** Los dos procesos (§3) existen: la API con el
+scheduler en su lifespan y el bot con `python -m app.bot.main`
+(polling). El scheduler está **apagado por defecto**
+(`SCHEDULER_ENABLED=false`) hasta que exista un token real de
+BotFather; sin token no hay avisos en vivo. La web **no** tiene
+todavía pantalla de vinculación de Telegram (ver §5.1): el
+estado de vinculación se consulta por la API
+(`GET /api/v1/telegram/status`).
+
 ## 1. Idea en una frase
 
 **Un monolito modular en Python (FastAPI), con dos procesos que
@@ -109,8 +119,11 @@ colas entre canales y no hay copias de datos.
    `MODELO_DATOS.md` §7.3), y marca la fila como `VINCULADA` con
    `chat_id` y `telegram_user_id`, borrando el hash del código en la
    misma transacción.
-4. La web, al recargar Ajustes, consulta el mismo servicio y muestra
-   "Telegram vinculado". El código ya usado no se puede reutilizar, y
+4. El estado de vinculación se consulta por la API
+   (`GET /api/v1/telegram/status`): **no hay todavía una
+   pantalla web de vinculación** (Fase 8) — el código se genera
+   con `POST /api/v1/telegram/link` y se introduce en el bot
+   con `/vincular`. El código ya usado no se puede reutilizar, y
    un código inexistente, vencido, usado o bloqueado devuelve el
    mismo mensaje genérico, para no revelar qué códigos existen.
 5. Desvincular desde la web marca la fila como `REVOCADA`: el scheduler
@@ -202,7 +215,7 @@ usaría la web, siempre la misma transacción, siempre la misma BD.
 - **Fuente de verdad:** la tabla `medication_reminders`.
 - **Generación:** ocurrencias para las próximas 72 horas, idempotentes
   por restricción única `(schedule_id, scheduled_at)`.
-- **Top-up (Etapa 6):** al arrancar y cada 6 h (intervalo fijo en
+- **Top-up (Fase 5):** al arrancar y cada 6 h (intervalo fijo en
   código), el top-up genera lo que falta en la ventana de 72 h con
   `generate_reminders_for_schedule`, sin borrar ni tocar estados
   existentes. Cada pasada es reconciliar → top-up → cargar, para

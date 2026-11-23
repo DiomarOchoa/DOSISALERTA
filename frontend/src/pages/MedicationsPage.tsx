@@ -4,8 +4,9 @@
 // - La busqueda es local sobre la lista cargada: la API no ofrece
 //   busqueda en el servidor, asi que no se finge una.
 // - Desactivar es una operacion destructiva en la practica (el
-//   backend la hace logica y la API actual no permite reactivar),
-//   asi que siempre pide confirmacion en linea antes de ejecutarla.
+//   backend la hace logica), asi que siempre pide confirmacion en
+//   linea antes de ejecutarla. Reactivar tambien pide
+//   confirmacion: POST /medications/{id}/reactivate (I-7).
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -13,6 +14,7 @@ import { ApiError } from "../services/api";
 import {
   deactivateMedication,
   listMedications,
+  reactivateMedication,
   type Medication,
 } from "../services/medications";
 import ApiErrorCard from "../components/ApiErrorCard";
@@ -40,6 +42,8 @@ export default function MedicationsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivateId, setReactivateId] = useState<number | null>(null);
+  const [reactivating, setReactivating] = useState(false);
 
   async function load(nextFilter: Filter) {
     setLoading(true);
@@ -82,6 +86,25 @@ export default function MedicationsPage() {
       );
     } finally {
       setDeactivating(false);
+    }
+  }
+
+  async function handleReactivate(med: Medication) {
+    setReactivating(true);
+    setSuccess(null);
+    try {
+      await reactivateMedication(med.id);
+      setReactivateId(null);
+      setSuccess(`«${med.name}» se reactivó y volvió a Activos.`);
+      await load(filter);
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? caught
+          : new ApiError(0, "No se pudo reactivar el medicamento."),
+      );
+    } finally {
+      setReactivating(false);
     }
   }
 
@@ -208,13 +231,22 @@ export default function MedicationsPage() {
                   >
                     Desactivar
                   </button>
-                ) : null}
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => setReactivateId(med.id)}
+                  >
+                    Reactivar
+                  </button>
+                )}
               </div>
               {confirmId === med.id ? (
                 <div className="confirm-box">
                   <p>
-                    ¿Desactivar «{med.name}»? Pasará a Inactivos y en esta
-                    versión no se puede reactivar desde la web.
+                    ¿Desactivar «{med.name}»? Pasará a Inactivos.
+                    Podrás reactivarlo cuando quieras desde la pestaña
+                    Inactivos.
                   </p>
                   <div className="confirm-actions">
                     <button
@@ -229,6 +261,31 @@ export default function MedicationsPage() {
                       type="button"
                       className="btn-ghost"
                       onClick={() => setConfirmId(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {reactivateId === med.id ? (
+                <div className="confirm-box">
+                  <p>
+                    ¿Reactivar «{med.name}»? Volverá a Activos. Las tomas
+                    canceladas al desactivarlo no se recuperan.
+                  </p>
+                  <div className="confirm-actions">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={reactivating}
+                      onClick={() => handleReactivate(med)}
+                    >
+                      {reactivating ? "Reactivando…" : "Sí, reactivar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => setReactivateId(null)}
                     >
                       Cancelar
                     </button>

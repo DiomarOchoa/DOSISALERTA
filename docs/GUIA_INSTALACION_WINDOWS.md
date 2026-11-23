@@ -6,9 +6,13 @@ integrantes del equipo siguen exactamente los mismos pasos, con las
 mismas versiones, para terminar con el mismo entorno reproducible.
 
 > Alcance: entorno de desarrollo local para los 4 computadores del
-> equipo. No incluye el bot de Telegram (Fase 6, sin publicar), ni
-> autenticación JWT (Fase 3, sin iniciar), ni despliegue a
-> producción. La Fase 3 sigue sin comenzar.
+> equipo. La autenticación JWT está implementada (Fase 3) y el bot
+> de Telegram está implementado (Fase 6), pero el **token real del
+> bot sigue pendiente de BotFather**: sin él no hay envío de avisos
+> ni bot en vivo (ver `docs/bot/CONFIGURACION_TELEGRAM.md`). No
+> incluye despliegue a producción. Estado actual (Etapa 8,
+> 2026-11-22): Fases 1–8 completadas, Fase 9 en curso; entrega
+> el 25 de noviembre de 2026 a las 12:00.
 
 > Regla de oro de esta guía: **si un documento del repositorio dice
 > algo distinto a esta guía, manda la guía.** Los README de backend
@@ -228,7 +232,8 @@ git log --oneline -3
 
 El HEAD debe coincidir con el del resto del equipo (pregúntale al
 responsable del proyecto cuál es el último commit antes de
-empezar; en el PC del equipo era `5f75de0`, Fase 2 publicada).
+empezar; en el PC del equipo era `2daf352`, merge de la Fase 8,
+2026-11-22).
 
 > Para contribuir después (paso 20) necesitarás autenticación con
 > **tu propia cuenta de GitHub** y una invitación como colaborador
@@ -262,13 +267,23 @@ Bloc de notas, o `notepad .env` en PowerShell) y completa:
 | `PORT` | Déjalo como viene: `8000`. |
 | `DEBUG` | Déjalo como viene: `false`. |
 | `CORS_ORIGINS` | Déjalo como viene: `http://localhost:5173`. |
+| `JWT_SECRET` | **Genera un secreto nuevo, distinto de los demás.** En PowerShell: `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Mínimo 32 caracteres. Implementado en la Fase 3: el backend lo lee y **no arranca sin él**. |
+| `JWT_ALGORITHM` | Déjalo como viene: `HS256`. |
+| `JWT_ACCESS_EXPIRATION_MINUTES` | Déjalo como viene: `60`. |
+| `JWT_REFRESH_EXPIRATION_DAYS` | Déjalo como viene: `7`. |
+| `CAREGIVER_LINK_SECRET` | **Genera un secreto nuevo, distinto de los demás** (mismo comando que `JWT_SECRET`). Mínimo 32 caracteres. Implementado en la Etapa 5 (códigos de invitación de cuidadores): el backend **no arranca sin él**. |
+| `TELEGRAM_LINK_SECRET` | **Genera un secreto nuevo, distinto de los demás** (mismo comando). Mínimo 32 caracteres. Implementado en la Fase 6 (códigos de vinculación de Telegram): el backend **no arranca sin él**. |
+| `TELEGRAM_BOT_USERNAME` | Déjalo como viene: `DosisAlertaBot`. |
+| `TELEGRAM_BOT_TOKEN` | **Déjalo con el placeholder hasta tener el token real de BotFather** (ver `docs/bot/CONFIGURACION_TELEGRAM.md`). El token real lo pone Diomar. Sin token real no hay bot en vivo ni envío de avisos, y el programador debe seguir apagado (`SCHEDULER_ENABLED=false`). Nunca escribas el token en el código ni en la documentación. |
 
-### Variables reservadas: déjalas como vienen (no se leen todavía)
-
-| Variable | Estado |
-|---|---|
-| `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_ACCESS_EXPIRATION_MINUTES`, `JWT_REFRESH_EXPIRATION_DAYS` | **Reservadas para la Fase 3 (autenticación), sin iniciar.** El backend no las lee todavía. Déjalas con los valores de la plantilla; no inventes secretos nuevos para ellas ni intentes activar el inicio de sesión. |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_LINK_SECRET` | **Reservadas para la Fase 6 (bot de Telegram), sin publicar.** El bot no forma parte del entorno común. No crees ningún token en BotFather y no instales `python-telegram-bot`: no está en el lock de Python (paso 11) a propósito. |
+> **Los tres secretos (`JWT_SECRET`, `CAREGIVER_LINK_SECRET`,
+> `TELEGRAM_LINK_SECRET`) son obligatorios, distintos entre sí y
+> de al menos 32 caracteres cada uno.** La configuración del
+> backend los valida al arrancar: si falta alguno o es demasiado
+> corto, el backend no levanta. Generarlos con `secrets` fuera
+> del repositorio; nunca reutilizar el mismo valor en dos
+> variables ni compartirlos. `.env.example` tiene 17 variables
+> (verificado 2026-11-22).
 
 ### Lo que NO va en el `.env` raíz
 
@@ -422,16 +437,25 @@ dependencias directas y transitivas):
 pip install -r requirements-lock.txt
 ```
 
-El lock tiene 36 líneas y reproduce el entorno que pasó las 43
-pruebas en el PC del equipo. Reglas del lock:
+El lock reproduce el entorno que pasó las pruebas en el PC del
+equipo. Reglas del lock:
 
 - **No edites `requirements-lock.txt` a mano.** Si una versión
   debe cambiar, es una decisión del equipo: se cambia en
   `pyproject.toml`, se reinstala en un entorno limpio, se pasan
   las pruebas y se regenera el lock con `pip freeze` (el
   procedimiento completo está en la cabecera del propio lock).
-- El lock **no incluye `python-telegram-bot`**: el bot está fuera
-  del entorno común hasta nueva autorización. No lo instales.
+- **Verificado en la Etapa 8 (2026-11-22) y corregido el mismo día
+  (autorización 2026-11-22 15:29):** el lock tiene 74 líneas en total
+  y **41 paquetes fijados** con `==`, incluido
+  `python-telegram-bot==22.8` (antes excluido a propósito; el backend
+  lo exige porque `app.main` importa el scheduler, que importa
+  `telegram`). La corrección se verificó con un venv limpio instalado
+  solo desde el lock (freeze idéntico, imports OK, `alembic current`
+  en head; la suite completa se repitió con ese venv — ver el informe
+  de la corrección del lock). Los números antiguos de
+  este paso (36 dependencias, 43 pruebas) son de la Fase 2 y quedan
+  como historia.
 - Si `pip install -r requirements-lock.txt` falla por red, revisa
   la conexión y reintenta; no sustituyas el lock por un
   `pip install` libre.
@@ -468,10 +492,11 @@ alembic upgrade head
 alembic current
 ```
 
-- `alembic upgrade head` aplica la migración inicial
-  `f2a17166bccd`, que crea las 13 tablas de la Fase 2 en la base
-  `dosisalerta`.
-- `alembic current` debe mostrar `f2a17166bccd (head)`.
+- `alembic upgrade head` aplica las migraciones hasta el head
+  actual, `8033addb5499` (migración 14, `caregiver_link_attempts`,
+  Fase 6), que crea las **14 tablas** del modelo en la base
+  `dosisalerta`. La cadena Alembic es lineal, sin ramas.
+- `alembic current` debe mostrar `8033addb5499 (head)`.
 
 Comprueba las tablas creadas:
 
@@ -479,8 +504,8 @@ Comprueba las tablas creadas:
 docker compose exec postgres psql -U dosisalerta -d dosisalerta -c "\dt public.*"
 ```
 
-Deben aparecer las 13 tablas de la Fase 2 más `alembic_version`
-(14 tablas en el esquema `public`).
+Deben aparecer las 14 tablas del modelo más `alembic_version`
+(15 tablas en el esquema `public`).
 
 Reglas de migraciones:
 
@@ -575,12 +600,16 @@ Con backend y frontend en marcha:
 
 Lo mismo debe responder <http://localhost:8000/api/v1/health>.
 
-2. Abre <http://localhost:5173>. La pantalla inicial muestra
-   "DosisAlerta" y la URL de la API configurada. Pulsa
-   **"Comprobar backend"**: debe decir "Backend en línea".
+2. Abre <http://localhost:5173>. La web muestra la pantalla de
+   inicio de sesión. Regístrate con una cuenta de prueba o
+   entra con una existente: al entrar verás el panel principal
+   (`/inicio`) con tus medicamentos y tus próximas tomas. La
+   pantalla inicial antigua con el botón "Comprobar backend"
+   ya no existe: fue sustituida por el inicio de sesión en la
+   Fase 3 y el panel en la Fase 8.
 
-Si el botón dice que no puede contactar al backend, revisa en
-este orden: que el backend esté en marcha en la terminal 1, que
+Si el inicio de sesión falla con error de red, revisa en este
+orden: que el backend esté en marcha en la terminal 1, que
 escuche en el puerto 8000, y que `VITE_API_URL` en
 `frontend/.env` apunte a `http://localhost:8000/api/v1`.
 
@@ -597,8 +626,13 @@ cd backend
 pytest
 ```
 
-Resultado esperado: **43 passed** (12 de la Fase 1 + 31 de la
-Fase 2). No debe haber fallos ni errores.
+Resultado esperado: **546 pasadas y 1 fallo conocido
+preexistente** (Estado actual, 2026-11-22). El fallo es
+`test_bot_structure::test_config_ignora_un_env_ajeno_en_el_directorio_de_trabajo`:
+el token placeholder de `.env` se filtra al entorno del test.
+No es una regresión: se declara en `docs/ENTORNO_LOCAL.md` y
+en el informe de la Etapa 7. El conteo antiguo de 43 pasadas
+(12 de la Fase 1 + 31 de la Fase 2) queda como historia.
 
 **Cómo está garantizado el aislamiento (no tienes que hacer
 nada):**
@@ -619,9 +653,9 @@ nada):**
 - Nunca ejecutes las pruebas apuntando a la base de desarrollo:
   si ves `ALEMBIC_DATABASE_URL` definida en tu entorno o en tu
   `.env`, quítala antes de probar.
-- No esperes 65 pruebas: las 22 del bot no están en el
-  repositorio (el bot sigue sin publicar). 43 es el total
-  correcto en este momento.
+- No esperes 43 pruebas: el total actual es 546 pasadas + 1
+  fallo conocido (ver arriba). Las pruebas del bot ya forman
+  parte del repositorio (Fase 6).
 - Si una prueba falla, no la "arregles" editando la prueba ni la
   base de datos a mano: anota el fallo exacto y avisa al equipo.
 
@@ -642,7 +676,7 @@ nada):**
 | `SELECT version();` devuelve PostgreSQL 18 | Estás llegando al servidor nativo, no al contenedor | Revisa `POSTGRES_PORT` en `.env` y repite la detección de puertos (paso 8) |
 | `pg_isready` no responde | El contenedor no arrancó | `docker compose logs postgres` antes de tocar nada (paso 9) |
 | `uvicorn` dice que el puerto 8000 está en uso | Otro backend ya corre | Para el proceso anterior (Ctrl+C en su terminal) y reintenta |
-| El botón "Comprobar backend" falla | Backend parado o URL mal configurada | Revisa la terminal 1 y `VITE_API_URL` en `frontend/.env` (pasos 15 y 16) |
+| El inicio de sesión falla | Backend parado o URL mal configurada | Revisa la terminal 1 y `VITE_API_URL` en `frontend/.env` (pasos 15 y 16) |
 | Error CORS en el navegador | El frontend no corre en el puerto esperado | El CORS del backend solo admite `http://localhost:5173`: arranca el frontend con `npm run dev` sin cambiar el puerto |
 | `pytest` falla por conexión a PostgreSQL | Contenedor parado o `POSTGRES_PORT` incorrecto | Arranca el contenedor (paso 9) y verifica `SELECT version();` |
 | `alembic` dice que no encuentra la revisión | No estás en `backend/` o falta `.env` | Ejecuta siempre desde `backend/`, con el entorno activado (paso 13) |
@@ -735,8 +769,10 @@ Docker Desktop y comprobar con `docker compose ps`.
 - Modificar el esquema de PostgreSQL a mano en la base de datos:
   los cambios de esquema van por migraciones de Alembic,
   revisadas en Pull Request.
-- Integrar el bot de Telegram o la autenticación JWT por cuenta
-  propia: son fases sin autorizar (Fase 6 y Fase 3).
+- Integrar cambios en el bot de Telegram o en la autenticación
+  JWT por cuenta propia: ambas están implementadas (Fases 3 y 6);
+  cualquier cambio nuevo necesita autorización del equipo y su
+  Pull Request correspondiente.
 
 ---
 
@@ -748,10 +784,13 @@ Marca cada punto antes de dar tu entorno por bueno:
 - [ ] `node --version` → `v24.12.0` y `npm --version` → `11.6.2`
 - [ ] `docker compose exec postgres pg_isready -U dosisalerta -d dosisalerta` → `accepting connections`
 - [ ] `SELECT version();` → `PostgreSQL 17.11`
-- [ ] `alembic current` → `f2a17166bccd (head)`
+- [ ] `alembic current` → `8033addb5499 (head)`
 - [ ] `http://localhost:8000/health` → `{"status": "ok", ...}`
-- [ ] `http://localhost:5173` → pantalla inicial y "Comprobar backend" en línea
-- [ ] `pytest` (desde `backend/`) → `43 passed`
+- [ ] `http://localhost:5173` → pantalla de inicio de sesión y,
+      tras entrar, el panel principal (`/inicio`)
+- [ ] `pytest` (desde `backend/`) → `546 passed, 1 failed`
+      (el fallo es el conocido preexistente del token placeholder;
+      ver paso 17)
 - [ ] `npm run build` (desde `frontend/`) → sin errores
 - [ ] `git status` limpio de archivos que no deben subirse (`.env`,
       `.venv`, `node_modules`, `dist` no aparecen)

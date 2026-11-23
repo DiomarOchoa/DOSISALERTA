@@ -14,15 +14,16 @@ import TreatmentDetailPage from "./pages/TreatmentDetailPage";
 import RemindersPage from "./pages/RemindersPage";
 import HistoryPage from "./pages/HistoryPage";
 import StatsPage from "./pages/StatsPage";
+import CaregiversPage from "./pages/CaregiversPage";
+import CalendarPage from "./pages/CalendarPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// Estructura de rutas de la Fase 8 (Entrega 2: medicamentos).
+// Estructura de rutas de la Fase 8.
 // Las rutas publicas (/login, /registro) estan abiertas; todas las
 // demas pasan por ProtectedRoute, que redirige a /login sin sesion.
-// Las paginas sin implementar siguen siendo marcadores honestos
-// ("llega en la Entrega N"), sin llamadas a la API salvo la
-// comprobacion de salud del Inicio.
+// Todas las paginas estan implementadas (Entrega 5: historial y
+// estadisticas); no quedan marcadores.
 export default function App() {
   return (
     <AuthProvider>
@@ -58,6 +59,8 @@ export default function App() {
               <Route path="/recordatorios" element={<RemindersPage />} />
               <Route path="/historial" element={<HistoryPage />} />
               <Route path="/estadisticas" element={<StatsPage />} />
+              <Route path="/cuidadores" element={<CaregiversPage />} />
+              <Route path="/calendario" element={<CalendarPage />} />
               <Route path="/perfil" element={<ProfilePage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
