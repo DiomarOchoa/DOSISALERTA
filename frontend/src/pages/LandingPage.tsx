@@ -26,9 +26,7 @@ export default function LandingPage() {
     <div className="landing">
       <header className="landing-header">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            +
-          </span>
+          <img className="brand-mark" src="/logo.jpg" alt="" aria-hidden="true" />
           DosisAlerta
         </div>
         <div className="landing-header-actions">

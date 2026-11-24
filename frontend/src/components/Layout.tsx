@@ -56,9 +56,7 @@ export function AppLayout() {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            +
-          </span>
+          <img className="brand-mark" src="/logo.jpg" alt="" aria-hidden="true" />
           DosisAlerta
         </div>
         {user ? (
@@ -98,9 +96,7 @@ export function AppLayout() {
 
       <nav className="bottom-nav" aria-label="Navegación principal">
         <div className="brand sidebar-brand">
-          <span className="brand-mark" aria-hidden="true">
-            +
-          </span>
+          <img className="brand-mark" src="/logo.jpg" alt="" aria-hidden="true" />
           DosisAlerta
         </div>
         <div className="bottom-nav-inner">
