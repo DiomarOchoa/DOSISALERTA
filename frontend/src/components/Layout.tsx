@@ -138,9 +138,7 @@ export function AppLayout() {
 export function PublicLayout() {
   return (
     <div className="auth-page">
-      <div className="welcome-mark" aria-hidden="true">
-        +
-      </div>
+      <img className="welcome-mark" src="/logo.jpg" alt="" aria-hidden="true" />
       <h1 className="welcome-title">
         Tu medicina, <span>a tiempo</span>
       </h1>

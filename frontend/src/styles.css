@@ -1628,12 +1628,10 @@ button:active:not(:disabled),
 
 .welcome-mark {
   width: 124px;
-  height: 58px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--acento) 50%, var(--manana) 50%);
+  height: 124px;
+  border-radius: 28px;
+  object-fit: cover;
   box-shadow: 0 16px 32px rgba(11, 122, 117, 0.25);
-  transform: rotate(-32deg);
-  font-size: 0;
   margin-bottom: 0.5rem;
 }
 
