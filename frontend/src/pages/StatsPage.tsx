@@ -92,13 +92,14 @@ function monthLabel(periodStart: string): string {
 // Paracetamol T3 prueba 6/9). El valor del filtro es siempre el
 // medication_id.
 function medicationLabel(medication: Medication): string {
-  const details = [medication.presentation, medication.concentration]
+  const details = [
+    medication.presentation,
+    medication.concentration,
+    medication.unit,
+  ]
     .filter(Boolean)
     .join(" · ");
-  const base = details
-    ? `${medication.name} (${details} ${medication.unit})`
-    : `${medication.name} (${medication.unit})`;
-  return base;
+  return details ? `${medication.name} (${details})` : medication.name;
 }
 
 function medicationOptions(medications: Medication[]): Medication[] {

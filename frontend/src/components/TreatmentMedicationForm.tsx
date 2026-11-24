@@ -12,6 +12,7 @@
 
 import type { Medication } from "../services/medications";
 import type { ScheduleCreateInput, TreatmentMedicationCreateInput } from "../services/treatments";
+import { UNIT_OPTIONS } from "./medicationOptions";
 import ScheduleForm, {
   emptySchedule,
   validateSchedule,
@@ -141,9 +142,21 @@ export default function TreatmentMedicationForm({
           id={`med-${errorPrefix || "nuevo"}`}
           value={value.medication_id || ""}
           disabled={disabled}
-          onChange={(event) =>
-            set({ medication_id: Number(event.target.value) })
-          }
+          onChange={(event) => {
+            const medicationId = Number(event.target.value);
+            const picked = medications.find(
+              (med) => med.id === medicationId,
+            );
+            // Si la unidad de la dosis está vacía, se hereda la del
+            // medicamento elegido; si ya tiene valor, no se toca.
+            set({
+              medication_id: medicationId,
+              dose_unit:
+                !value.dose_unit.trim() && picked?.unit
+                  ? picked.unit
+                  : value.dose_unit,
+            });
+          }}
         >
           <option value="" disabled>
             Elige un medicamento activo
@@ -193,11 +206,17 @@ export default function TreatmentMedicationForm({
             id={`unit-${errorPrefix || "nuevo"}`}
             type="text"
             maxLength={30}
-            placeholder="mg, ml, tabletas…"
+            list={`unit-options-${errorPrefix || "nuevo"}`}
+            placeholder="Elige o escribe la unidad"
             value={value.dose_unit}
             disabled={disabled}
             onChange={(event) => set({ dose_unit: event.target.value })}
           />
+          <datalist id={`unit-options-${errorPrefix || "nuevo"}`}>
+            {UNIT_OPTIONS.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
           {err("dose_unit") ? (
             <p className="field-error">{err("dose_unit")}</p>
           ) : null}

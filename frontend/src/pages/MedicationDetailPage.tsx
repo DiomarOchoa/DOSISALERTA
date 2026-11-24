@@ -151,6 +151,15 @@ export default function MedicationDetailPage() {
           </div>
 
           <div className="confirm-actions" style={{ marginTop: "1rem" }}>
+            {med.is_active ? (
+              <Link
+                className="btn-primary"
+                to="/tratamientos/nuevo"
+                state={{ medicationId: med.id }}
+              >
+                Crear tratamiento
+              </Link>
+            ) : null}
             <button type="button" onClick={() => setEditing(true)}>
               Editar
             </button>

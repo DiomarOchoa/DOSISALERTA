@@ -14,6 +14,16 @@ import type { ScheduleCreateInput, ScheduleFrequency } from "../services/treatme
 
 const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+// Atajos habituales: un toque deja la frecuencia y las horas
+// listas. Son los esquemas más usados; después se pueden ajustar
+// la frecuencia y las horas a mano.
+const TIME_PRESETS: { label: string; times: string[] }[] = [
+  { label: "1 vez al día", times: ["08:00"] },
+  { label: "Cada 12 horas", times: ["08:00", "20:00"] },
+  { label: "Cada 8 horas", times: ["08:00", "16:00", "00:00"] },
+  { label: "Cada 6 horas", times: ["06:00", "12:00", "18:00", "00:00"] },
+];
+
 export type ScheduleErrors = Record<string, string>;
 
 export function emptySchedule(defaultStartDate: string): ScheduleCreateInput {
@@ -121,6 +131,33 @@ export default function ScheduleForm({
 
   return (
     <div className="sched-block">
+      <div className="field">
+        <span className="field-label">Atajo</span>
+        <div className="day-chips">
+          {TIME_PRESETS.map((preset) => (
+            <button
+              type="button"
+              className="btn-ghost"
+              key={preset.label}
+              disabled={disabled}
+              onClick={() =>
+                set({
+                  frequency: "DIARIO",
+                  days_of_week: null,
+                  interval_days: null,
+                  times: preset.times,
+                })
+              }
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          Elige un atajo o ajusta la frecuencia y las horas a mano.
+        </p>
+      </div>
+
       <div className="field-row">
         <div className="field">
           <label htmlFor={`freq-${errorPrefix || "nuevo"}`}>

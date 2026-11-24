@@ -4,7 +4,7 @@
 // backend exige al menos uno.
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../services/api";
 import { listMedications, type Medication } from "../services/medications";
 import ApiErrorCard from "../components/ApiErrorCard";
@@ -12,6 +12,11 @@ import TreatmentForm from "../components/TreatmentForm";
 
 export default function TreatmentCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Al llegar desde el detalle de un medicamento, ese medicamento
+  // ya viene elegido en el formulario.
+  const state = location.state as { medicationId?: number } | null;
+  const preselectedMedicationId = state?.medicationId;
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
@@ -94,6 +99,7 @@ export default function TreatmentCreatePage() {
       <section className="card">
         <TreatmentForm
           medications={medications}
+          preselectedMedicationId={preselectedMedicationId}
           onSaved={(created) => navigate(`/tratamientos/${created.id}`)}
           onCancel={() => navigate("/tratamientos")}
         />

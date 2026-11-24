@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { ApiError } from "../services/api";
+import { PRESENTATION_OPTIONS, UNIT_OPTIONS } from "./medicationOptions";
 import {
   createMedication,
   updateMedication,
@@ -174,13 +175,21 @@ export default function MedicationForm({
           type="text"
           value={presentation}
           maxLength={MAX_PRESENTATION}
+          list="med-presentation-options"
           onChange={(event) => setPresentation(event.target.value)}
           placeholder="Tableta"
         />
+        <datalist id="med-presentation-options">
+          {PRESENTATION_OPTIONS.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
         {errors.presentation ? (
           <p className="field-error">{errors.presentation}</p>
         ) : (
-          <p className="hint">Opcional, hasta 100 caracteres.</p>
+          <p className="hint">
+            Elige de la lista o escribe otra (opcional).
+          </p>
         )}
       </div>
 
@@ -208,13 +217,21 @@ export default function MedicationForm({
           type="text"
           value={unit}
           maxLength={MAX_UNIT}
+          list="med-unit-options"
           onChange={(event) => setUnit(event.target.value)}
           placeholder="tableta"
         />
+        <datalist id="med-unit-options">
+          {UNIT_OPTIONS.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
         {errors.unit ? (
           <p className="field-error">{errors.unit}</p>
         ) : (
-          <p className="hint">Opcional, hasta 30 caracteres.</p>
+          <p className="hint">
+            Elige de la lista o escribe otra (opcional).
+          </p>
         )}
       </div>
 
