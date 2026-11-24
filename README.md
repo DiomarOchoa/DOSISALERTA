@@ -1,15 +1,20 @@
 # DOSISALERTA
 
-> **Estado: Fases 1–8 — COMPLETADAS. Fase 9 (auditoría y entrega) —
-> EN CURSO. Entrega: 25 de noviembre de 2026, 12:00 m.**
+> **Estado: Fases 1–8 — COMPLETADAS. Fase 9: auditoría local
+> completada; despliegue en producción realizado. Entrega:
+> 25 de noviembre de 2026, 12:00 m.**
 > Backend FastAPI completo (medicamentos, tratamientos, horarios,
 > recordatorios, historial, estadísticas, cuidadores, Telegram),
 > frontend React completo (12 rutas) y bot de Telegram sobre
 > servicios reales. Base de datos PostgreSQL 17.11 con **14
 > tablas** y Alembic en head `8033addb5499`. Suite backend:
-> **546 pasadas + 1 fallo conocido preexistente** (ver §Pruebas).
+> **564 pasadas + 1 fallo conocido preexistente** (ver §Pruebas).
+> Desplegado en producción: frontend en
+> https://dosisalerta.vercel.app y backend en
+> https://dosisalerta.onrender.com (verificación en producción
+> en curso).
 > Commits en `main`, en https://github.com/DiomarOchoa/DOSISALERTA.
-> HEAD: `2daf352` (merge de la Fase 8, 2026-11-22).
+> HEAD: `26683b1` (fix fallback SPA en Vercel, 2026-11-23); 49 commits.
 > Distinción honesta: la implementación está hecha y verificada
 > ejecutándola de verdad (ver `ESTADO_PROYECTO.md` y los informes
 > `INFORME_ETAPA*.md`); lo que falta está listado en
@@ -94,8 +99,10 @@ datos para la web y otra para Telegram.
       historial, estadísticas, perfil, cuidadores, calendario;
       confirmación y posposición desde la web; cuidadores con
       permisos; cambio de zona horaria; merge `2daf352`).
-- [ ] Fase 9: pruebas, despliegue y documentación final
-      (EN CURSO: Etapas 7–9 de verificación y auditoría).
+- [x] Fase 9: pruebas, despliegue y documentación final
+      (auditoría local completada 2026-11-22, Etapas 7–9;
+      desplegado en producción 2026-11-23: frontend en Vercel,
+      backend en Render; verificación en producción en curso).
 
 ## Tecnologías
 
@@ -112,13 +119,14 @@ datos para la web y otra para Telegram.
 | Pruebas | Pytest + HTTPX | Instalados en la Fase 1 (Pytest 9.2.0, HTTPX 0.28.1). En la Fase 2 se añadió pytest-asyncio 1.4.1.post1 para las 31 pruebas de modelos contra PostgreSQL real. |
 | Frontend | React + Vite + TypeScript | CSS moderno, sin framework CSS pesado |
 | Entorno | Docker y Docker Compose | Solo PostgreSQL, verificado el 2026-11-11 (ver `docs/ENTORNO_LOCAL.md`) |
-| Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `2daf352`; 14 tablas, Alembic head `8033addb5499`; suite 546 pasadas + 1 fallo conocido |
+| Control de versiones | Git y GitHub | Repositorio público, rama `main`, HEAD `26683b1`; 14 tablas, Alembic head `8033addb5499`; suite 564 pasadas + 1 fallo conocido |
 
 Versiones canónicas (Fase A): Python 3.13.4, Node.js 24.12.0,
-npm 11.6.2, PostgreSQL 17.11. Dependencias verificadas: FastAPI
+npm 11.6.2, PostgreSQL 17.11. Frontend `engines`: Node `24.x`,
+sin pin de npm (corrección Vercel, commit `84ad59c`). Dependencias verificadas: FastAPI
 0.162.0, Uvicorn 0.54.0, Pydantic 2.14.2, Pytest 9.2.0, React
 19.3.1, Vite 6.4.5, TypeScript 5.9.3. Suite backend actual:
-**546 pasadas + 1 fallo conocido preexistente** (ver
+**564 pasadas + 1 fallo conocido preexistente** (ver
 `ESTADO_PROYECTO.md`); build del frontend en verde (83 módulos).
 Detalle completo en `backend/README.md`, `frontend/README.md` y
 `docs/GUIA_INSTALACION_WINDOWS.md`.
@@ -210,7 +218,7 @@ pip install -e . --no-deps
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 # API en http://localhost:8000 — documentación en http://localhost:8000/docs
-# Pruebas (en otra terminal, desde backend/): pytest (546 passed + 1 fallo conocido)
+# Pruebas (en otra terminal, desde backend/): pytest (564 passed + 1 fallo conocido)
 
 # 4. Frontend
 cd ..\frontend
@@ -247,7 +255,7 @@ pip install -e . --no-deps
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 # API en http://localhost:8000 — documentación en http://localhost:8000/docs
-# Pruebas (en otra terminal, desde backend/): pytest (546 passed + 1 fallo conocido)
+# Pruebas (en otra terminal, desde backend/): pytest (564 passed + 1 fallo conocido)
 
 # 4. Frontend
 cd ../frontend
@@ -348,14 +356,14 @@ futura solo si hay despliegue con dominio y TLS; ver
 
 ## Integrantes
 
-> **Actualizado el 2026-11-22.** El equipo son Diomar Ochoa (líder),
+> **Actualizado el 2026-11-23.** El equipo son Diomar Ochoa (líder),
 > Jaider Toro Camacho, Roderic Gallardo y Maisha (apellido por
 > confirmar). Requisito académico cumplido por los cuatro:
 > **mínimo 5 commits descriptivos por integrante**.
 
 | Integrante | Rol / módulo a cargo | Commits |
 |---|---|---|
-| Diomar Ochoa | Líder: coordinación, revisión, fusión, docs, Fase 9 | 28 |
+| Diomar Ochoa | Líder: coordinación, revisión, fusión, docs, Fase 9 | 34 |
 | Jaider Toro Camacho | Fase 4 (API) + Fase 5 (motor) | 5 |
 | Roderic Gallardo | Fase 7 (historial/estadísticas) + Fase 8 (web) | 5 |
 | Maisha | Fase 6 (bot) + Fase 8 (web) | 5 |
@@ -410,7 +418,7 @@ con la convención `feat:`, `fix:`, `docs:`, `refactor:`, `test:`,
   auditoría de las Etapas 7–9 (corrección DST, auditoría de
   permisos con un defecto real encontrado y corregido, ciclo de
   la migración 14, documentación). En cada fase, la IA ejecutó
-  de verdad las pruebas y los servidores (suite final: 546
+  de verdad las pruebas y los servidores (suite final: 564
   pasadas + 1 fallo conocido preexistente; build del frontend
   en verde) y dejó constancia de lo no verificado (token real
   de Telegram, comprobación visual a 390 px, creación de

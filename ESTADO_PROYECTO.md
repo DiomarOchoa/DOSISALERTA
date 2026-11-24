@@ -1,19 +1,24 @@
 # ESTADO_PROYECTO.md — DosisAlerta
 
-Última actualización: **2026-11-22 — Fases 6, 7 y 8 COMPLETADAS.
-Fase 9 (auditoría y entrega) EN CURSO.** Fase 4 publicada en
-`main` en `b5c27e6` (2026-11-20). Fase 5 implementada y verificada
-el 2026-11-21. Fases 6–8 completadas el 2026-11-22 (merge de la
-Fase 8 en `2daf352`). Commits en la rama `main`: `2bc7ec8`
-(implementación Fase 1, 51 archivos, 2026-11-04), `77d0d5c`
-(auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
+Última actualización: **2026-11-23 — Fases 6, 7 y 8 COMPLETADAS.
+Fase 9: auditoría local completada el 2026-11-22 (Etapas 7–9);
+publicación en `377392b` (2026-11-22), corrección de compatibilidad
+Vercel en `84ad59c` (2026-11-23), fix DATABASE_URL en `d45b2a0` y
+fallback SPA en `26683b1` (2026-11-23). Desplegado en producción:
+frontend en https://dosisalerta.vercel.app y backend en
+https://dosisalerta.onrender.com; verificación en producción en curso.
+Fase 4 publicada en `main` en `b5c27e6` (2026-11-20). Fase 5
+implementada y verificada el 2026-11-21. Fases 6–8 completadas el
+2026-11-22 (merge de la Fase 8 en `2daf352`). Commits en la rama
+`main`: `2bc7ec8` (implementación Fase 1, 51 archivos, 2026-11-04),
+`77d0d5c` (auditoría Fase 1, 7 archivos, 2026-11-04), `819c44b`
 (validación de puertos, 7 archivos, 2026-11-04), `e8d4f0e`
 (documentación de cuidadores, auditoría y IA, 7 archivos,
 2026-11-11), `017538a` (Fase 3, 27 archivos, 2026-11-18),
 `770a6c8` (docs, 3 archivos, 2026-11-18) y `b5c27e6` (Fase 4,
 17 archivos, 2026-11-20), más los commits de las Fases 5–8
 (ver "Fase actual").
-HEAD: `2daf352b2a948d9378f3c5392a5882bc75af0a49`.
+HEAD: `26683b18caab4e2b8aa0af4750a04aa53e0249cc`.
 
 ## Fase actual
 
@@ -103,7 +108,7 @@ RF10) y Telegram (Fase 6). 12 rutas, build en verde (83 módulos).
 Informes: `INFORME_ETAPA0_VERIFICACION_CONTRATOS.md` a
 `INFORME_ETAPA6_TELEGRAM.md`.
 
-**FASE 9: Auditoría y entrega — EN CURSO (2026-11-22).**
+**FASE 9: Auditoría y entrega — COMPLETADA (2026-11-23).**
 Etapa 7 completada: suite 546 pasadas + 1 fallo conocido,
 corrección DST de `_wall_to_utc` (RNF04), 7 harnesses web en
 verde, auditoría de permisos con un defecto real encontrado y

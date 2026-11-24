@@ -1,7 +1,7 @@
 # Guion de sustentación — DosisAlerta (10 minutos)
 
 > Sustentación presencial, 10 minutos, con demo en vivo (web +
-> bot). Estado: Fases 1–8 completadas, Fase 9 en curso
+> bot). Estado: Fases 1–8 completadas, Fase 9: auditoría local completada; despliegue realizado
 > (2026-11-22). Entrega del proyecto: 25 de noviembre de 2026,
 > 12:00. Este guion no inventa datos: la demo usa las cuentas
 > de prueba documentadas y la parte del bot depende del token
@@ -17,7 +17,7 @@
 | 4:30–5:30 | Arquitectura | Diomar | Monolito modular, dos procesos, una sola BD, el servicio manda. |
 | 5:30–6:30 | Decisiones D-1 a D-11 | Roderic | Las 11 decisiones de la Fase 7, una frase cada una (§4). |
 | 6:30–7:15 | Seguridad y cuidadores | Jaider | JWT, aislamiento por usuario, permisos de cuidador y auditoría. |
-| 7:15–8:15 | Pruebas y calidad | Roderic + Maisha | Suite 546 + 1 fallo conocido, harnesses 7/7, defecto corregido. |
+| 7:15–8:15 | Pruebas y calidad | Roderic + Maisha | Suite 564 + 1 fallo conocido, harnesses 7/7, defecto corregido. |
 | 8:15–9:30 | Limitaciones honestas | Diomar | RF15 sin UI web, RF18 parcial, token pendiente, programador apagado. |
 | 9:30–10:00 | Cierre | Diomar | Qué se entrega, qué sigue (Fase 10, IA) y preguntas. |
 
@@ -185,7 +185,7 @@ Una frase por decisión (Fase 7, todas de Diomar, 2026-11-21):
 
 ## 5. Pruebas y calidad (1:00, Roderic + Maisha)
 
-- "Suite del backend: **546 pasadas y 1 fallo conocido
+- "Suite del backend: **564 pasadas y 1 fallo conocido
   preexistente** (un test de estructura al que se le filtra el
   token placeholder del `.env`). No es una regresión y no se
   oculta: está declarado en los informes."
@@ -293,7 +293,7 @@ improvisar detalles de un módulo ajeno.
 ## 9. Cierre (0:30, Diomar)
 
 - "DosisAlerta está entregado: web completa, bot
-  implementado y probado, 546 pruebas en verde, 14 tablas,
+  implementado y probado, 564 pruebas en verde, 14 tablas,
   decisiones documentadas y limitaciones declaradas."
 - "Lo que queda pendiente depende de una sola cosa que solo
   yo puedo desbloquear: el token real de BotFather. Con él,
