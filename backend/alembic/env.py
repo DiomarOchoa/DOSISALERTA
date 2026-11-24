@@ -28,7 +28,7 @@ from alembic import context
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import get_settings, normalize_database_url  # noqa: E402
 from app.models import Base  # noqa: E402
 
 config = context.config
@@ -45,9 +45,15 @@ def _database_url() -> str:
     Por defecto sale de la configuracion central (`.env`). Las
     pruebas de la Fase 2 pueden apuntar a otra base de datos
     (por ejemplo, `dosisalerta_test`) con la variable de entorno
-    `ALEMBIC_DATABASE_URL`, sin tocar `.env`.
+    `ALEMBIC_DATABASE_URL`, sin tocar `.env`. La URL del override
+    tambien se normaliza al esquema async, con la misma funcion
+    central (`normalize_database_url`): una sola logica de
+    construccion de URLs en todo el proyecto.
     """
-    return os.environ.get("ALEMBIC_DATABASE_URL") or get_settings().database_url
+    override = os.environ.get("ALEMBIC_DATABASE_URL")
+    if override:
+        return normalize_database_url(override)
+    return get_settings().database_url
 
 
 def run_migrations_offline() -> None:

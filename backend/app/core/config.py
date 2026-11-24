@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from urllib.parse import quote, urlsplit
 
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Carga .env si existe. Si no existe, no falla: se usan los valores
 # por defecto de desarrollo local que hay abajo. Desde la Fase 2 hay
@@ -92,6 +93,48 @@ def _getint(
     return value
 
 
+def normalize_database_url(raw: str) -> str:
+    """Normaliza una URL de base de datos para el motor async (asyncpg).
+
+    - ``postgres://`` y ``postgresql://`` pasan a
+      ``postgresql+asyncpg://`` (el esquema que exige
+      ``create_async_engine``).
+    - ``postgresql+asyncpg://`` se conserva tal cual.
+    - Los parametros de conexion y SSL de la URL se conservan
+      sin tocar: no se anade ni se inventa ninguno.
+    - Cualquier otro esquema, o una URL sin host, es un error
+      claro: la URL se rechaza en lugar de degradar en silencio
+      a otra configuracion (eso fue el fallo de produccion en
+      Render: una URL ignorada y un localhost silencioso).
+
+    La URL nunca se incluye en el mensaje de error: puede
+    contener la contrasena.
+    """
+    value = (raw or "").strip()
+    lowered = value.lower()
+    for prefix in ("postgres://", "postgresql://"):
+        if lowered.startswith(prefix):
+            value = "postgresql+asyncpg://" + value[len(prefix):]
+            break
+    else:
+        if not lowered.startswith("postgresql+asyncpg://"):
+            raise ValueError(
+                "DATABASE_URL tiene un esquema no admitido. Usa "
+                "postgres://, postgresql:// o postgresql+asyncpg://, "
+                "o configura la base de datos con POSTGRES_HOST, "
+                "POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER y "
+                "POSTGRES_PASSWORD."
+            )
+    if not urlsplit(value).hostname:
+        raise ValueError(
+            "DATABASE_URL no incluye un host. Revisa la URL o "
+            "configura la base de datos con POSTGRES_HOST, "
+            "POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER y "
+            "POSTGRES_PASSWORD."
+        )
+    return value
+
+
 class Settings(BaseModel):
     """Ajustes de la aplicacion. Un solo objeto, leido una sola vez."""
 
@@ -113,9 +156,17 @@ class Settings(BaseModel):
     # de aqui (`database_url`).
     postgres_db: str = "dosisalerta"
     postgres_user: str = "dosisalerta"
-    postgres_password: str = "dosisalerta"
+    postgres_password: str = Field(default="dosisalerta", repr=False)
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+
+    # URL completa de la base de datos (despliegues como Render).
+    # Tiene prioridad sobre las cinco piezas POSTGRES_*: si esta
+    # definida y es valida, se usa ella (normalizada a
+    # postgresql+asyncpg://). Vacia por defecto: sin ella se usan
+    # las piezas, como hasta ahora. No aparece en repr(): contiene
+    # la contrasena.
+    database_url_raw: str = Field(default="", repr=False)
 
     # Autenticacion JWT (Fase 3). JWT_SECRET es obligatorio y debe
     # tener al menos 32 caracteres; su valor nunca se imprime en
@@ -162,6 +213,13 @@ class Settings(BaseModel):
         data.setdefault("postgres_password", _getenv("POSTGRES_PASSWORD", "dosisalerta"))
         data.setdefault("postgres_host", _getenv("POSTGRES_HOST", "localhost"))
         data.setdefault("postgres_port", _getint("POSTGRES_PORT", 5432))
+        data.setdefault("database_url_raw", _getenv("DATABASE_URL", ""))
+        # Validacion inmediata: una DATABASE_URL definida pero no valida
+        # debe fallar al arrancar (error claro), nunca degradar en
+        # silencio a localhost. Se guarda ya normalizada.
+        _raw_url = (data.get("database_url_raw") or "").strip()
+        if _raw_url:
+            data["database_url_raw"] = normalize_database_url(_raw_url)
         data.setdefault("jwt_secret", _getenv("JWT_SECRET", ""))
         data.setdefault(
             "caregiver_link_secret", _getenv("CAREGIVER_LINK_SECRET", "")
@@ -230,11 +288,20 @@ class Settings(BaseModel):
         """URL async para SQLAlchemy. La usan los modelos (Fase 2)
         y Alembic para las migraciones.
 
-        La contrasena va en la URL solo cuando SQLAlchemy la necesite.
-        Nunca se imprime esta URL en logs: contiene la contrasena.
+        Prioridad: si `DATABASE_URL` esta definida y es valida, se
+        usa ella (normalizada a ``postgresql+asyncpg://``). Si no,
+        se construye desde las cinco piezas `POSTGRES_*`, como
+        hasta ahora; usuario y contrasena se codifican para que
+        los caracteres especiales no rompan la URL. La URL nunca
+        se imprime en logs: contiene la contrasena.
         """
+        raw = (self.database_url_raw or "").strip()
+        if raw:
+            # Ya validada y normalizada en __init__: fail-fast al arrancar.
+            return raw
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+asyncpg://{quote(self.postgres_user, safe='')}"
+            f":{quote(self.postgres_password, safe='')}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 

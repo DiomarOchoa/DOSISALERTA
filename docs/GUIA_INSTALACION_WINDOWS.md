@@ -294,9 +294,12 @@ Bloc de notas, o `notepad .env` en PowerShell) y completa:
   es una clave ignorada: no hace daño, pero no la uses.
 - **No inventes variables de entorno.** Si una variable no está
   en `.env.example`, no la añadas: nada del código la leerá.
-- **`DATABASE_URL` no existe en este proyecto.** No la crees: el
-  backend construye la URL desde las cinco variables
-  `POSTGRES_*`.
+- **`DATABASE_URL` sí existe en este proyecto (corrección de conexión
+  de Render, 2026-11-23).** Es la forma recomendada en despliegues:
+  el backend la usa con prioridad y normaliza su esquema a
+  `postgresql+asyncpg://` automáticamente. Sin ella, el backend
+  construye la URL desde las cinco variables `POSTGRES_*`
+  (desarrollo local).
 
 Guarda el archivo y verifica que `.env` está ignorado por Git (no
 debe aparecer en `git status`):
