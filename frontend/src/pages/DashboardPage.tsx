@@ -1,14 +1,21 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { API_URL, healthUrl } from "../config";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../services/api";
 import {
+  collectUpcomingReminders,
   findNextReminder,
+  hasUnavailableUpcoming,
   listTreatments,
   type Reminder,
 } from "../services/treatments";
-import { formatInZone } from "../utils/user";
+import {
+  confirmReminder,
+  postponeReminder,
+  type PostponeDelay,
+} from "../services/reminders";
+import { getCompliance, type ComplianceResponse } from "../services/stats";
+import { formatInZone, localDateKey } from "../utils/user";
 import {
   BellIcon,
   CalendarIcon,
@@ -16,33 +23,73 @@ import {
   ClockIcon,
   PillIcon,
 } from "../components/icons";
+import ApiErrorCard from "../components/ApiErrorCard";
+import StatsSummary from "../components/StatsSummary";
+import UpcomingReminders from "../components/UpcomingReminders";
 
-// Inicio (andamio de la Entrega 0, saludo con nombre en la
-// Entrega 1): saludo, proxima dosis real (Entrega 3: GET
-// /treatments y la toma mas proxima de `upcoming_reminders`; si
-// no hay, el mensaje honesto de siempre, sin calcular tomas),
-// acciones rapidas, comprobacion de salud (logica de la Fase 1,
-// sin cambios) y avance del proyecto con los estados reales a
-// 22 nov 2026.
+// Inicio: saludo, proxima dosis real, dosis de hoy con confirmar y
+// posponer, resumen de cumplimiento de los ultimos 30 dias y
+// acciones rapidas.
+//
+// Fuente unica para las dosis: una sola llamada a
+// GET /treatments?limit=200 (sin N+1); las tomas salen de
+// `upcoming_reminders` (ventana de 72 horas) y nunca se calculan.
+// El cumplimiento sale de GET /stats/compliance (ultimos 30 dias,
+// sin agrupacion) y se muestra tal cual, sin recalcular porcentajes.
+// Sin sesion valida (401), la pagina muestra los estados vacios.
 
-type HealthState =
-  | { kind: "idle" }
+type DosesState =
   | { kind: "loading" }
-  | { kind: "ok"; version: string }
-  | { kind: "error"; message: string };
-
-type NextDoseState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "found"; reminder: Reminder }
+  | {
+      kind: "ready";
+      next: Reminder | null;
+      today: Reminder[];
+      unavailable: boolean;
+    }
   | { kind: "empty" }
-  | { kind: "error" };
+  | { kind: "error"; error: ApiError };
+
+type ComplianceState =
+  | { status: "loading" }
+  | { status: "ready"; data: ComplianceResponse }
+  | { status: "error" }
+  | { status: "skipped" };
+
+function todayLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!match) {
+    return dateStr;
+  }
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]) + days,
+  );
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const timezone = user?.timezone ?? "America/Bogota";
-  const [health, setHealth] = useState<HealthState>({ kind: "idle" });
-  const [nextDose, setNextDose] = useState<NextDoseState>({ kind: "idle" });
+  const [doses, setDoses] = useState<DosesState>({ kind: "loading" });
+  const [compliance, setCompliance] = useState<ComplianceState>({
+    status: "loading",
+  });
+  const [success, setSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyReminderId, setBusyReminderId] = useState<number | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const firstName = user?.name.trim().split(/\s+/)[0] ?? "";
   const today = new Date().toLocaleDateString("es-CO", {
     weekday: "long",
@@ -50,29 +97,61 @@ export default function DashboardPage() {
     month: "long",
   });
 
+  const load = useCallback(async () => {
+    setDoses({ kind: "loading" });
+    try {
+      const treatments = await listTreatments();
+      const reminders = collectUpcomingReminders(treatments);
+      const todayKey = localDateKey(new Date().toISOString(), timezone);
+      setDoses({
+        kind: "ready",
+        next: findNextReminder(treatments),
+        today: reminders.filter(
+          (reminder) =>
+            localDateKey(reminder.scheduled_at, timezone) === todayKey,
+        ),
+        unavailable: hasUnavailableUpcoming(treatments),
+      });
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        // Sin sesion valida no hay dosis que mostrar; la pagina
+        // sigue funcionando (el 401 ya limpio los tokens).
+        setDoses({ kind: "empty" });
+      } else {
+        setDoses({
+          kind: "error",
+          error:
+            caught instanceof ApiError
+              ? caught
+              : new ApiError(0, "No se pudieron cargar tus dosis."),
+        });
+      }
+    }
+  }, [timezone]);
+
+  useEffect(() => {
+    void load();
+  }, [load, reloadNonce]);
+
   useEffect(() => {
     let cancelled = false;
-    setNextDose({ kind: "loading" });
-    listTreatments()
-      .then((treatments) => {
-        if (cancelled) {
-          return;
+    setCompliance({ status: "loading" });
+    getCompliance({
+      from: addDays(todayLocal(), -29),
+      to: addDays(todayLocal(), 1),
+    })
+      .then((data) => {
+        if (!cancelled) {
+          setCompliance({ status: "ready", data });
         }
-        const next = findNextReminder(treatments);
-        setNextDose(
-          next ? { kind: "found", reminder: next } : { kind: "empty" },
-        );
       })
       .catch((caught) => {
-        if (cancelled) {
-          return;
-        }
-        // Sin sesion valida no hay proxima dosis que mostrar; la
-        // pagina sigue funcionando (el 401 ya limpio los tokens).
-        if (caught instanceof ApiError && caught.status === 401) {
-          setNextDose({ kind: "empty" });
-        } else {
-          setNextDose({ kind: "error" });
+        if (!cancelled) {
+          if (caught instanceof ApiError && caught.status === 401) {
+            setCompliance({ status: "skipped" });
+          } else {
+            setCompliance({ status: "error" });
+          }
         }
       });
     return () => {
@@ -80,42 +159,43 @@ export default function DashboardPage() {
     };
   }, []);
 
-  async function checkBackend() {
-    setHealth({ kind: "loading" });
+  async function handleConfirm(reminder: Reminder) {
+    setBusyReminderId(reminder.id);
+    setSuccess(null);
+    setActionError(null);
     try {
-      const response = await fetch(healthUrl(API_URL));
-      if (!response.ok) {
-        setHealth({
-          kind: "error",
-          message: `El backend respondio HTTP ${response.status}.`,
-        });
-        return;
-      }
-      const data: unknown = await response.json();
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        "status" in data &&
-        (data as { status: unknown }).status === "ok"
-      ) {
-        const version =
-          "version" in data &&
-          typeof (data as { version: unknown }).version === "string"
-            ? (data as { version: string }).version
-            : "desconocida";
-        setHealth({ kind: "ok", version });
-      } else {
-        setHealth({
-          kind: "error",
-          message: "Respuesta inesperada del backend.",
-        });
-      }
-    } catch {
-      setHealth({
-        kind: "error",
-        message:
-          "No se pudo contactar al backend. Comprueba que esta corriendo en el puerto 8000.",
-      });
+      await confirmReminder(reminder.id);
+      setSuccess(`«${reminder.medication.name}» marcada como tomada.`);
+      setReloadNonce((n) => n + 1);
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo confirmar la toma.",
+      );
+    } finally {
+      setBusyReminderId(null);
+    }
+  }
+
+  async function handlePostpone(reminder: Reminder, delay: PostponeDelay) {
+    setBusyReminderId(reminder.id);
+    setSuccess(null);
+    setActionError(null);
+    try {
+      await postponeReminder(reminder.id, delay);
+      setSuccess(
+        `«${reminder.medication.name}» pospuesta ${delay} minutos.`,
+      );
+      setReloadNonce((n) => n + 1);
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo posponer la toma.",
+      );
+    } finally {
+      setBusyReminderId(null);
     }
   }
 
@@ -128,55 +208,51 @@ export default function DashboardPage() {
         {today}. Este es tu panel de DosisAlerta.
       </p>
 
-      <section className="card next-dose">
-        <p className="label">Próxima dosis</p>
-        {nextDose.kind === "loading" ? (
-          <>
+      {doses.kind === "error" ? (
+        <ApiErrorCard
+          error={doses.error}
+          resource="tus dosis"
+          backTo="/tratamientos"
+          backLabel="Ver tratamientos"
+          onRetry={() => setReloadNonce((n) => n + 1)}
+        />
+      ) : (
+        <section className="card next-dose">
+          <p className="label">Próxima dosis</p>
+          {doses.kind === "loading" ? (
             <h2>Buscando tu próxima dosis…</h2>
-          </>
-        ) : nextDose.kind === "found" ? (
-          <>
-            <h2>
-              {nextDose.reminder.medication.name} ·{" "}
-              {nextDose.reminder.dose_amount}{" "}
-              {nextDose.reminder.dose_unit}
-            </h2>
-            <p>
-              {formatInZone(nextDose.reminder.scheduled_at, timezone)}
-              {" · "}
-              {nextDose.reminder.treatment.title}
-            </p>
-            <Link
-              to={`/tratamientos/${nextDose.reminder.treatment.id}`}
-              className="btn-light"
-            >
-              Ver tratamiento
-            </Link>
-          </>
-        ) : nextDose.kind === "error" ? (
-          <>
-            <h2>No se pudo cargar tu próxima dosis</h2>
-            <p>
-              Comprueba que el backend esté en línea y vuelve a
-              intentarlo desde Tratamientos.
-            </p>
-            <Link to="/tratamientos" className="btn-light">
-              Ver tratamientos
-            </Link>
-          </>
-        ) : (
-          <>
-            <h2>Aún no tienes dosis programadas</h2>
-            <p>
-              Cuando tengas tratamientos con horarios, aquí aparecerá
-              tu próxima dosis con su hora y su medicamento.
-            </p>
-            <Link to="/tratamientos" className="btn-light">
-              Ver tratamientos
-            </Link>
-          </>
-        )}
-      </section>
+          ) : doses.kind === "ready" && doses.next ? (
+            <>
+              <h2>
+                {doses.next.medication.name} {doses.next.dose_amount}{" "}
+                {doses.next.dose_unit}
+              </h2>
+              <p>
+                {formatInZone(doses.next.scheduled_at, timezone)}
+                {" • "}
+                {doses.next.treatment.title}
+              </p>
+              <Link
+                to={`/tratamientos/${doses.next.treatment.id}`}
+                className="btn-light"
+              >
+                Ver tratamiento
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2>Aún no tienes dosis programadas</h2>
+              <p>
+                Cuando tengas tratamientos con horarios, aquí aparecerá
+                tu próxima dosis con su hora y su medicamento.
+              </p>
+              <Link to="/tratamientos" className="btn-light">
+                Ver tratamientos
+              </Link>
+            </>
+          )}
+        </section>
+      )}
 
       <div className="quick-actions">
         <Link to="/medicamentos" className="quick-action">
@@ -211,59 +287,103 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <section className="card">
-        <h2>Estado del backend</h2>
-        <p>
-          API configurada: <code>{API_URL}</code>
-        </p>
-        <button
-          type="button"
-          onClick={checkBackend}
-          disabled={health.kind === "loading"}
-        >
-          {health.kind === "loading" ? "Comprobando..." : "Comprobar backend"}
-        </button>
-        {health.kind === "ok" && (
-          <p className="ok">Backend en linea (version {health.version}).</p>
-        )}
-        {health.kind === "error" && (
-          <p className="error">{health.message}</p>
-        )}
-      </section>
+      {doses.kind === "error" ? null : (
+        <section className="card">
+          <h2>Dosis de hoy</h2>
+          {success ? <p className="success-box">{success}</p> : null}
+          {actionError ? <p className="error">{actionError}</p> : null}
+          {doses.kind === "loading" ? (
+            <p className="hint">Cargando tus dosis de hoy…</p>
+          ) : doses.kind === "empty" ? (
+            <>
+              <p>No tienes dosis programadas para hoy.</p>
+              <Link className="btn-primary" to="/tratamientos">
+                Ver tratamientos
+              </Link>
+            </>
+          ) : (
+            <>
+              {doses.unavailable ? (
+                <div className="warn-box">
+                  <p>
+                    No se pudieron cargar las próximas tomas de todos tus
+                    tratamientos. Lo que ves abajo puede estar incompleto.
+                  </p>
+                </div>
+              ) : null}
+              {doses.today.length === 0 && !doses.unavailable ? (
+                <>
+                  <p>
+                    No tienes dosis programadas para hoy. Cuando tengas
+                    tratamientos con horarios, aquí aparecerán tus tomas
+                    del día con sus horas.
+                  </p>
+                  <Link className="btn-primary" to="/tratamientos">
+                    Ver tratamientos
+                  </Link>
+                </>
+              ) : null}
+              {doses.today.length === 0 && doses.unavailable ? (
+                <>
+                  <p>
+                    No se pudo comprobar si tienes dosis para hoy. Vuelve
+                    a intentarlo desde Tratamientos.
+                  </p>
+                  <Link className="btn-primary" to="/tratamientos">
+                    Ver tratamientos
+                  </Link>
+                </>
+              ) : null}
+              {doses.today.length > 0 ? (
+                <UpcomingReminders
+                  reminders={doses.today}
+                  timezone={timezone}
+                  showTreatment
+                  onConfirm={handleConfirm}
+                  onPostpone={handlePostpone}
+                  busyReminderId={busyReminderId}
+                />
+              ) : null}
+            </>
+          )}
+          <p className="hint">
+            <Link to="/recordatorios">
+              Ver las próximas tomas de 72 horas
+            </Link>
+            .
+          </p>
+        </section>
+      )}
 
-      <section className="card">
-        <h2>Avance del proyecto</h2>
-        <ul className="phase-list">
-          <li>
-            <span>Fase 2: modelos y base de datos PostgreSQL.</span>
-            <span className="badge badge-done">Hecha</span>
-          </li>
-          <li>
-            <span>Fase 3: registro e inicio de sesión.</span>
-            <span className="badge badge-done">Hecha</span>
-          </li>
-          <li>
-            <span>Fase 4: medicamentos, tratamientos y horarios.</span>
-            <span className="badge badge-done">Hecha</span>
-          </li>
-          <li>
-            <span>Fase 5: motor de recordatorios.</span>
-            <span className="badge badge-done">Hecha</span>
-          </li>
-          <li>
-            <span>Fase 6: bot de Telegram.</span>
-            <span className="badge badge-pending">Pendiente</span>
-          </li>
-          <li>
-            <span>Fase 7: historial y estadísticas.</span>
-            <span className="badge badge-done">Hecha</span>
-          </li>
-          <li>
-            <span>Fase 8: aplicación web.</span>
-            <span className="badge badge-progress">En desarrollo</span>
-          </li>
-        </ul>
-      </section>
+      {compliance.status === "skipped" ? null : (
+        <section className="card">
+          <h2>Tu cumplimiento</h2>
+          {compliance.status === "loading" ? (
+            <p className="hint">Cargando tu cumplimiento…</p>
+          ) : compliance.status === "error" ? (
+            <>
+              <p>No se pudo cargar tu cumplimiento.</p>
+              <Link className="btn-primary" to="/estadisticas">
+                Ver estadísticas
+              </Link>
+            </>
+          ) : (
+            <>
+              <StatsSummary summary={compliance.data.summary} />
+              {compliance.data.summary.scheduled === 0 ? (
+                <p className="hint">
+                  Aún no hay tomas programadas en los últimos 30 días.
+                  Crea un tratamiento con horarios para ver tu
+                  cumplimiento.
+                </p>
+              ) : null}
+              <p>
+                <Link to="/estadisticas">Ver estadísticas</Link>
+              </p>
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

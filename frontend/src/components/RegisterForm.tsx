@@ -40,11 +40,11 @@ export default function RegisterForm() {
       return;
     }
     if (password.length < 8) {
-      setError("La contrasena debe tener al menos 8 caracteres.");
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
     if (passwordTooLong(password)) {
-      setError("La contrasena es demasiado larga (maximo 72 bytes).");
+      setError("La contraseña es demasiado larga (máximo 72 bytes).");
       return;
     }
     setLoading(true);
@@ -59,7 +59,7 @@ export default function RegisterForm() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Ocurrio un error inesperado.");
+        setError("Ocurrió un error inesperado.");
       }
     } finally {
       setLoading(false);
@@ -81,7 +81,7 @@ export default function RegisterForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="register-email">Correo electronico</label>
+        <label htmlFor="register-email">Correo electrónico</label>
         <input
           id="register-email"
           type="email"
@@ -92,7 +92,7 @@ export default function RegisterForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="register-password">Contrasena</label>
+        <label htmlFor="register-password">Contraseña</label>
         <input
           id="register-password"
           type="password"
@@ -101,7 +101,7 @@ export default function RegisterForm() {
           required
           autoComplete="new-password"
         />
-        <p className="hint">Minimo 8 caracteres.</p>
+        <p className="hint">Mínimo 8 caracteres.</p>
       </div>
       <div className="field">
         <label htmlFor="register-timezone">Zona horaria</label>

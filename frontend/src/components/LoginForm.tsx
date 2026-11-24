@@ -23,7 +23,7 @@ export default function LoginForm() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Ocurrio un error inesperado.");
+        setError("Ocurrió un error inesperado.");
       }
     } finally {
       setLoading(false);
@@ -33,7 +33,7 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="form">
       <div className="field">
-        <label htmlFor="login-email">Correo electronico</label>
+        <label htmlFor="login-email">Correo electrónico</label>
         <input
           id="login-email"
           type="email"
@@ -44,7 +44,7 @@ export default function LoginForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="login-password">Contrasena</label>
+        <label htmlFor="login-password">Contraseña</label>
         <input
           id="login-password"
           type="password"

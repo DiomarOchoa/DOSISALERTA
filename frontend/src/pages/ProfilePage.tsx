@@ -197,8 +197,7 @@ export default function ProfilePage() {
           </li>
           <li>Cierra sesión con el botón Salir de arriba.</li>
           <li>
-            Si el backend no responde, pulsa “Comprobar backend” en
-            Inicio y revisa que esté corriendo en el puerto 8000.
+            Si la aplicación no responde, vuelve a intentarlo en unos minutos.
           </li>
         </ul>
       </section>

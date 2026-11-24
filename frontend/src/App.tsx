@@ -1,7 +1,8 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AppLayout, PublicLayout } from "./components/Layout";
+import LandingPage from "./pages/LandingPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -20,6 +21,7 @@ import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // Estructura de rutas de la Fase 8.
+// La raiz (/) es la pagina publica de presentacion (landing).
 // Las rutas publicas (/login, /registro) estan abiertas; todas las
 // demas pasan por ProtectedRoute, que redirige a /login sin sesion.
 // Todas las paginas estan implementadas (Entrega 5: historial y
@@ -29,6 +31,8 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
+
           <Route element={<PublicLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegisterPage />} />
@@ -36,7 +40,6 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/inicio" replace />} />
               <Route path="/inicio" element={<DashboardPage />} />
               <Route path="/medicamentos" element={<MedicationsPage />} />
               <Route
