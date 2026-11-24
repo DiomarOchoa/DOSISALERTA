@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import type { ComponentType } from "react";
-import { BellIcon, CalendarIcon, HomeIcon, PillIcon, UserIcon } from "./icons";
+import {
+  BellIcon,
+  CalendarIcon,
+  ChartIcon,
+  ClockIcon,
+  HomeIcon,
+  PillIcon,
+  UserIcon,
+} from "./icons";
 import { useAuth } from "../context/AuthContext";
 import { initials } from "../utils/user";
 
@@ -23,6 +31,15 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/tratamientos", label: "Tratamientos", Icon: CalendarIcon },
   { to: "/recordatorios", label: "Recordatorios", Icon: BellIcon },
   { to: "/perfil", label: "Perfil", Icon: UserIcon },
+];
+
+// Accesos que solo caben en el menú lateral de escritorio; en el
+// móvil se llega a ellos desde Inicio y Perfil.
+const NAV_SECONDARY: NavItem[] = [
+  { to: "/calendario", label: "Calendario", Icon: CalendarIcon },
+  { to: "/historial", label: "Historial", Icon: ClockIcon },
+  { to: "/estadisticas", label: "Estadísticas", Icon: ChartIcon },
+  { to: "/cuidadores", label: "Cuidadores", Icon: UserIcon },
 ];
 
 export function AppLayout() {
@@ -80,8 +97,29 @@ export function AppLayout() {
       </main>
 
       <nav className="bottom-nav" aria-label="Navegación principal">
+        <div className="brand sidebar-brand">
+          <span className="brand-mark" aria-hidden="true">
+            +
+          </span>
+          DosisAlerta
+        </div>
         <div className="bottom-nav-inner">
           {NAV_ITEMS.map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                isActive ? "nav-item active" : "nav-item"
+              }
+            >
+              <Icon size={22} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
+        <div className="nav-secondary">
+          <p className="nav-secondary-title">Seguimiento</p>
+          {NAV_SECONDARY.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}

@@ -7,6 +7,10 @@ import {
   UserIcon,
 } from "../components/icons";
 
+// Pastillero decorativo del hero: siete días por tres momentos.
+const WEEK_DAYS = ["L", "M", "X", "J", "V", "S", "D"];
+const PERIODS = ["manana", "tarde", "noche"] as const;
+
 // Pagina publica de presentacion (landing) de DosisAlerta.
 // Sin sesion: que es la aplicacion, sus funciones y como funciona,
 // con acceso directo a crear cuenta e iniciar sesion. Con sesion,
@@ -38,21 +42,46 @@ export default function LandingPage() {
       </header>
 
       <section className="landing-hero">
-        <h1>
-          Tu medicina, <span>a tiempo</span>
-        </h1>
-        <p>
-          Tus tratamientos, horarios y recordatorios en un solo lugar.
-          DosisAlerta te avisa cuando toca cada toma y te muestra cómo
-          vas con tu tratamiento.
-        </p>
-        <div className="landing-hero-actions">
-          <Link to="/registro" className="btn-primary">
-            Crear cuenta
-          </Link>
-          <Link to="/login" className="btn-ghost">
-            Ya tengo cuenta
-          </Link>
+        <div className="landing-hero-copy">
+          <h1>Tu medicina, a tiempo</h1>
+          <p>
+            Tus tratamientos, horarios y recordatorios en un solo
+            lugar. DosisAlerta te avisa cuando toca cada toma y te
+            muestra cómo vas con tu tratamiento.
+          </p>
+          <div className="landing-hero-actions">
+            <Link to="/registro" className="btn-primary">
+              Crear cuenta
+            </Link>
+            <Link to="/login" className="btn-ghost">
+              Ya tengo cuenta
+            </Link>
+          </div>
+        </div>
+
+        <div className="landing-visual" aria-hidden="true">
+          <div className="pillbox">
+            {WEEK_DAYS.map((day, dayIndex) => (
+              <div key={day} className="pillbox-day">
+                <span className="pillbox-label">{day}</span>
+                {PERIODS.map((period, periodIndex) => (
+                  <span
+                    key={period}
+                    className={
+                      (dayIndex * 3 + periodIndex) % 5 === 0
+                        ? `pillbox-slot slot-${period} is-empty`
+                        : `pillbox-slot slot-${period}`
+                    }
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="pillbox-legend">
+            <span className="legend-manana">Mañana</span>
+            <span className="legend-tarde">Tarde</span>
+            <span className="legend-noche">Noche</span>
+          </div>
         </div>
       </section>
 

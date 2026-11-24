@@ -15,7 +15,7 @@ import {
   type PostponeDelay,
 } from "../services/reminders";
 import { getCompliance, type ComplianceResponse } from "../services/stats";
-import { formatInZone, localDateKey } from "../utils/user";
+import { formatDayInZone, localDateKey } from "../utils/user";
 import {
   BellIcon,
   CalendarIcon,
@@ -24,6 +24,7 @@ import {
   PillIcon,
 } from "../components/icons";
 import ApiErrorCard from "../components/ApiErrorCard";
+import DoseClock from "../components/DoseClock";
 import StatsSummary from "../components/StatsSummary";
 import UpcomingReminders from "../components/UpcomingReminders";
 
@@ -223,15 +224,24 @@ export default function DashboardPage() {
             <h2>Buscando tu próxima dosis…</h2>
           ) : doses.kind === "ready" && doses.next ? (
             <>
-              <h2>
-                {doses.next.medication.name} {doses.next.dose_amount}{" "}
-                {doses.next.dose_unit}
-              </h2>
-              <p>
-                {formatInZone(doses.next.scheduled_at, timezone)}
-                {" • "}
-                {doses.next.treatment.title}
-              </p>
+              <div className="next-dose-body">
+                <DoseClock
+                  className="next-dose-time"
+                  value={doses.next.scheduled_at}
+                  timezone={timezone}
+                />
+                <div className="next-dose-info">
+                  <h2>
+                    {doses.next.medication.name} {doses.next.dose_amount}{" "}
+                    {doses.next.dose_unit}
+                  </h2>
+                  <p>
+                    {formatDayInZone(doses.next.scheduled_at, timezone)}
+                    {" · "}
+                    {doses.next.treatment.title}
+                  </p>
+                </div>
+              </div>
               <Link
                 to={`/tratamientos/${doses.next.treatment.id}`}
                 className="btn-light"

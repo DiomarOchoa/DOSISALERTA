@@ -123,3 +123,96 @@ export function localDayLabel(dayKey: string, todayKey: string): string {
   });
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+// Hora de un instante UTC en la zona del usuario, partida en la
+// hora ("8:00") y el indicador ("a. m."), para mostrarla grande.
+export function formatClock(
+  value: string,
+  timezone: string,
+): { time: string; meridiem: string } {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { time: value, meridiem: "" };
+  }
+  const options: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  };
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("es-CO", {
+      ...options,
+      timeZone: timezone,
+    }).formatToParts(date);
+  } catch {
+    parts = new Intl.DateTimeFormat("es-CO", options).formatToParts(date);
+  }
+  const get = (type: string): string =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    time: `${get("hour")}:${get("minute")}`,
+    meridiem: get("dayPeriod"),
+  };
+}
+
+// Día de un instante UTC en la zona del usuario, sin la hora
+// ("martes, 24 de noviembre" o, en corto, "mar, 24 nov").
+export function formatDayInZone(
+  value: string,
+  timezone: string,
+  style: "long" | "short" = "long",
+): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: style,
+    day: "numeric",
+    month: style,
+  };
+  try {
+    return date.toLocaleDateString("es-CO", { ...options, timeZone: timezone });
+  } catch {
+    return date.toLocaleDateString("es-CO", options);
+  }
+}
+
+// Momento del día de una toma: mañana (5:00-11:59), tarde
+// (12:00-18:59) o noche (el resto). Sirve para colorear las dosis.
+export type DayPeriod = "manana" | "tarde" | "noche";
+
+export const DAY_PERIOD_LABEL: Record<DayPeriod, string> = {
+  manana: "Mañana",
+  tarde: "Tarde",
+  noche: "Noche",
+};
+
+export function dayPeriod(value: string, timezone: string): DayPeriod {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "manana";
+  }
+  const options: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    hourCycle: "h23",
+  };
+  let hour: number;
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat("en-US", { ...options, timeZone: timezone })
+        .formatToParts(date)
+        .find((part) => part.type === "hour")?.value,
+    );
+  } catch {
+    hour = date.getHours();
+  }
+  if (hour >= 5 && hour < 12) {
+    return "manana";
+  }
+  if (hour >= 12 && hour < 19) {
+    return "tarde";
+  }
+  return "noche";
+}

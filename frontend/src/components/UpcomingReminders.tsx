@@ -23,7 +23,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Reminder } from "../services/treatments";
 import type { PostponeDelay } from "../services/reminders";
-import { formatInZone } from "../utils/user";
+import DoseClock from "./DoseClock";
+import {
+  DAY_PERIOD_LABEL,
+  dayPeriod,
+  formatDayInZone,
+  formatInZone,
+} from "../utils/user";
 
 export function formatReminderTime(
   reminder: Reminder,
@@ -83,14 +89,26 @@ export default function UpcomingReminders({
       {sorted.map((reminder) => {
         const busy = busyReminderId === reminder.id;
         const pickingDelay = postponeId === reminder.id;
+        const period = dayPeriod(reminder.scheduled_at, timezone);
         return (
-          <li key={reminder.id} className="upcoming-item">
-            <div>
+          <li
+            key={reminder.id}
+            className={`upcoming-item period-${period}`}
+          >
+            <div className="dose-time">
+              <DoseClock
+                className="dose-clock"
+                value={reminder.scheduled_at}
+                timezone={timezone}
+              />
+              <span className="dose-period">{DAY_PERIOD_LABEL[period]}</span>
+            </div>
+            <div className="upcoming-info">
               <p className="med-name">{reminder.medication.name}</p>
               <p className="med-meta">
                 {reminder.dose_amount} {reminder.dose_unit}
                 {" · "}
-                {formatReminderTime(reminder, timezone)}
+                {formatDayInZone(reminder.scheduled_at, timezone, "short")}
               </p>
               {showTreatment ? (
                 <p className="med-meta">
