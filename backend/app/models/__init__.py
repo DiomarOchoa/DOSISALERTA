@@ -14,6 +14,7 @@ migracion inicial.
 from __future__ import annotations
 
 from app.models.base import Base
+from app.models.bot_flow_states import BotFlowState
 from app.models.caregivers import (
     AUDIT_RESULTS,
     CAREGIVER_LINK_STATUSES,
@@ -54,6 +55,7 @@ __all__ = [
     "TELEGRAM_ACCOUNT_STATUSES",
     "TREATMENT_STATUSES",
     "Base",
+    "BotFlowState",
     "CaregiverAuditLog",
     "CaregiverLink",
     "Medication",
