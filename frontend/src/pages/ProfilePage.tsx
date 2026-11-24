@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiError, updateProfile } from "../services/auth";
+import {
+  createTelegramLinkCode,
+  fetchTelegramStatus,
+  unlinkTelegram,
+  type TelegramLinkCode,
+  type TelegramLinkStatusResponse,
+} from "../services/telegram";
 import { formatDate, initials } from "../utils/user";
 
 // Zonas horarias IANA que se ofrecen en el selector (RF03).
@@ -40,6 +47,9 @@ const TIMEZONES: { value: string; label: string }[] = [
 // RF03 (Etapa 5): la zona horaria es configurable desde aqui
 // (PATCH /auth/me); un cambio recalcula unicamente las tomas
 // PENDIENTE futuras (RNF04).
+// RF15 (Etapa 6): la vinculacion de Telegram se hace desde aqui
+// (POST /telegram/link). El codigo se muestra UNA SOLA VEZ y
+// caduca en 15 minutos; generar uno nuevo invalida el anterior.
 export default function ProfilePage() {
   const { user, logout, refreshUser } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -49,6 +59,44 @@ export default function ProfilePage() {
   const [savingTz, setSavingTz] = useState(false);
   const [tzSaved, setTzSaved] = useState(false);
   const [tzError, setTzError] = useState<string | null>(null);
+  const [tgStatus, setTgStatus] =
+    useState<TelegramLinkStatusResponse | null>(null);
+  const [tgStatusLoading, setTgStatusLoading] = useState(true);
+  const [tgError, setTgError] = useState<string | null>(null);
+  const [tgCode, setTgCode] = useState<TelegramLinkCode | null>(null);
+  const [tgGenerating, setTgGenerating] = useState(false);
+  const [tgUnlinking, setTgUnlinking] = useState(false);
+  const [tgCopied, setTgCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTelegramStatus() {
+      setTgStatusLoading(true);
+      setTgError(null);
+      try {
+        const status = await fetchTelegramStatus();
+        if (!cancelled) {
+          setTgStatus(status);
+        }
+      } catch (caught) {
+        if (!cancelled) {
+          setTgError(
+            caught instanceof ApiError
+              ? caught.message
+              : "No se pudo consultar el estado de Telegram.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setTgStatusLoading(false);
+        }
+      }
+    }
+    void loadTelegramStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!user) {
     return null;
@@ -58,6 +106,7 @@ export default function ProfilePage() {
   const timezoneOptions = TIMEZONES.some((z) => z.value === user.timezone)
     ? TIMEZONES
     : [{ value: user.timezone, label: user.timezone }, ...TIMEZONES];
+  const tgLinked = tgStatus?.status === "VINCULADA";
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -84,6 +133,77 @@ export default function ProfilePage() {
       );
     } finally {
       setSavingTz(false);
+    }
+  }
+
+  async function handleRefreshTelegramStatus() {
+    setTgStatusLoading(true);
+    setTgError(null);
+    try {
+      setTgStatus(await fetchTelegramStatus());
+    } catch (caught) {
+      setTgError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo consultar el estado de Telegram.",
+      );
+    } finally {
+      setTgStatusLoading(false);
+    }
+  }
+
+  async function handleGenerateTelegramCode() {
+    if (tgGenerating) {
+      return;
+    }
+    setTgGenerating(true);
+    setTgError(null);
+    setTgCode(null);
+    setTgCopied(false);
+    try {
+      setTgCode(await createTelegramLinkCode());
+      setTgStatus(await fetchTelegramStatus());
+    } catch (caught) {
+      setTgError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo generar el código de vinculación.",
+      );
+    } finally {
+      setTgGenerating(false);
+    }
+  }
+
+  async function handleUnlinkTelegram() {
+    if (tgUnlinking) {
+      return;
+    }
+    setTgUnlinking(true);
+    setTgError(null);
+    setTgCode(null);
+    setTgCopied(false);
+    try {
+      setTgStatus(await unlinkTelegram());
+    } catch (caught) {
+      setTgError(
+        caught instanceof ApiError
+          ? caught.message
+          : "No se pudo desvincular Telegram.",
+      );
+    } finally {
+      setTgUnlinking(false);
+    }
+  }
+
+  async function handleCopyTelegramCode() {
+    if (!tgCode) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(tgCode.code);
+      setTgCopied(true);
+    } catch {
+      setTgCopied(false);
     }
   }
 
@@ -177,6 +297,107 @@ export default function ProfilePage() {
         <Link className="btn-primary" to="/cuidadores">
           Gestionar cuidadores
         </Link>
+      </section>
+
+      <section className="card">
+        <h2>Telegram</h2>
+        <p className="muted">
+          Vincula tu cuenta de Telegram para recibir los avisos de
+          tus tomas y confirmarlas desde el bot.
+        </p>
+        {tgStatusLoading ? (
+          <p className="muted">Cargando estado de Telegram…</p>
+        ) : tgLinked ? (
+          <div>
+            <p>
+              Vinculada
+              {tgStatus?.telegram_username
+                ? ` con @${tgStatus.telegram_username}`
+                : ""}
+              {tgStatus?.linked_at
+                ? ` desde el ${formatDate(tgStatus.linked_at)}`
+                : ""}
+              .
+            </p>
+            <p className="hint">
+              Recibes los avisos de tus tomas en Telegram y puedes
+              confirmarlos desde el bot.
+            </p>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => void handleUnlinkTelegram()}
+              disabled={tgUnlinking}
+            >
+              {tgUnlinking ? "Desvinculando…" : "Desvincular Telegram"}
+            </button>
+          </div>
+        ) : (
+          <div>
+            {tgStatus?.has_pending_code ? (
+              <p className="hint">
+                Ya tienes un código pendiente. Si generas uno nuevo,
+                el anterior deja de valer.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void handleGenerateTelegramCode()}
+              disabled={tgGenerating}
+            >
+              {tgGenerating ? "Generando…" : "Vincular Telegram"}
+            </button>{" "}
+            <button
+              type="button"
+              className="btn-ghost btn-small"
+              onClick={() => void handleRefreshTelegramStatus()}
+              disabled={tgStatusLoading}
+            >
+              Actualizar estado
+            </button>
+            {tgCode ? (
+              <div
+                className="success-box"
+                style={{ marginTop: "1rem" }}
+              >
+                <p style={{ margin: 0 }}>Tu código de vinculación:</p>
+                <p
+                  style={{
+                    margin: "0.5rem 0",
+                    fontFamily: "monospace",
+                    fontSize: "1.5rem",
+                    letterSpacing: "0.15em",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {tgCode.code}
+                </p>
+                <p style={{ margin: 0 }}>
+                  Envíale al bot @DosisAlertaBot:{" "}
+                  <strong>/vincular {tgCode.code}</strong>
+                </p>
+                <p className="hint" style={{ margin: "0.5rem 0 0" }}>
+                  El código caduca en 15 minutos y solo se muestra
+                  una vez. No lo compartas con nadie.
+                </p>
+                <button
+                  type="button"
+                  className="btn-primary btn-small"
+                  style={{ marginTop: "0.75rem" }}
+                  onClick={() => void handleCopyTelegramCode()}
+                >
+                  {tgCopied ? "Copiado" : "Copiar código"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+        {tgError ? (
+          <p className="error" style={{ marginTop: "0.5rem" }}>
+            {tgError}
+          </p>
+        ) : null}
       </section>
 
       <section className="card">
