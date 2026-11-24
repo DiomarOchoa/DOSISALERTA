@@ -5,14 +5,15 @@ Se ejecuta con::
     python -m app.bot.main
 
 desde la carpeta ``backend/`` (con el entorno virtual activado).
+En Render Free corre detras de ``run_bot.py``, que ademas levanta
+el servidor de salud en ``$PORT``.
 
-El bot corre como proceso independiente en polling (sin webhook
-en desarrollo: no exige dominio ni HTTPS). Nunca accede directo
-a PostgreSQL: en la Fase 6 llamara a los mismos servicios que
-la web. En este esqueleto de demostracion los handlers usan
-datos ficticios (``app.bot.services.mock_data``).
+El bot corre como proceso independiente en polling (sin webhook:
+no exige dominio ni HTTPS). Nunca accede directo a PostgreSQL:
+los handlers abren una sesion con ``AsyncSessionLocal`` y llaman
+a los mismos servicios que la web (Fase 6, Etapa 6).
 
-Sin ``TELEGRAM_BOT_TOKEN`` en ``.env`` el proceso no arranca:
+Sin ``TELEGRAM_BOT_TOKEN`` en el entorno el proceso no arranca:
 falla con un mensaje claro, sin mostrar nunca el valor del
 token.
 """
